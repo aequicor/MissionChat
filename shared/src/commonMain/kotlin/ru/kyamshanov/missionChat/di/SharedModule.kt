@@ -1,22 +1,11 @@
 package ru.kyamshanov.missionChat.di
 
 import org.koin.dsl.module
-import ru.kyamshanov.missionChat.ChatInputComponent
-import ru.kyamshanov.missionChat.DefaultChatInputComponent
-import ru.kyamshanov.missionChat.DefaultMessagesComponent
-import ru.kyamshanov.missionChat.DefaultWelcomeScreenComponent
-import ru.kyamshanov.missionChat.KoinRootComponentFactory
-import ru.kyamshanov.missionChat.MessagesComponent
-import ru.kyamshanov.missionChat.RootComponentFactory
-import ru.kyamshanov.missionChat.WelcomeScreenComponent
-import ru.kyamshanov.missionChat.presentation.container.ChatInputContainer
+import ru.kyamshanov.missionChat.*
 import ru.kyamshanov.missionChat.presentation.container.ChatContainer
+import ru.kyamshanov.missionChat.presentation.container.ChatInputContainer
 import ru.kyamshanov.missionChat.presentation.container.WelcomeScreenContainer
-import ru.kyamshanov.missionChat.utils.ChatInputParams
-import ru.kyamshanov.missionChat.utils.ComponentFactory
-import ru.kyamshanov.missionChat.utils.KoinComponentFactory
-import ru.kyamshanov.missionChat.utils.MessagesParams
-import ru.kyamshanov.missionChat.utils.WelcomeScreenParams
+import ru.kyamshanov.missionChat.utils.*
 
 val sharedModule = module {
     includes(DomainDiModule)
@@ -43,7 +32,7 @@ val sharedModule = module {
     factory<MessagesComponent> { (params: MessagesParams) ->
         DefaultMessagesComponent(
             componentContext = params.componentContext,
-            containerFactory = { ChatContainer(get()) },
+            containerFactory = { ChatContainer(params.chat, get()) },
         )
     }
 }

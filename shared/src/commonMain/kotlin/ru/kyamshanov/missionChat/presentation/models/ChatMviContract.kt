@@ -21,13 +21,15 @@ sealed interface MessagesState : MVIState {
      */
     data class Error(val e: Exception?) : MessagesState
 
+    data object NoMessages : MessagesState
+
     /**
      * State representing successfully loaded messages.
      * @property messages The list of messages to display.
      * @property isGenerating Indicates if an AI response is currently being generated.
      */
     data class Loaded(
-        val messages: List<MessagePresentationModel>,
+        val messages: ChatPresentationModel,
         val isGenerating: Boolean = false,
     ) : MessagesState
 }

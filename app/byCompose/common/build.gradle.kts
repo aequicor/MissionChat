@@ -24,6 +24,7 @@ kotlin {
         commonMain.dependencies {
             //module with logic
             implementation(projects.shared)
+            implementation(projects.domain)
 
             //decompose
             implementation(libs.decompose)

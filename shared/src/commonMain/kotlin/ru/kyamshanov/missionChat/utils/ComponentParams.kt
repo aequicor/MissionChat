@@ -1,6 +1,7 @@
 package ru.kyamshanov.missionChat.utils
 
 import com.arkivanov.decompose.ComponentContext
+import ru.kyamshanov.missionChat.domain.models.Chat
 
 /**
  * Data class to hold assisted parameters for [ru.kyamshanov.missionChat.WelcomeScreenComponent].
@@ -26,5 +27,6 @@ data class ChatInputParams(
  * @property componentContext The Decompose component context.
  */
 data class MessagesParams(
+    val chat: Chat,
     val componentContext: ComponentContext
 )

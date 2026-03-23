@@ -1,10 +1,10 @@
 package ru.kyamshanov.missionChat.domain.repositories
 
 import kotlinx.datetime.LocalDateTime
-import ru.kyamshanov.missionChat.domain.models.MessageInference
-import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Identifier
+import ru.kyamshanov.missionChat.domain.models.MessageInference
+import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.domain.utils.now
 
 /**
@@ -50,8 +50,8 @@ internal interface ChatRepository {
     suspend fun getMessages(
         topicId: Identifier,
         limit: Int,
-        before: LocalDateTime? = null
-    ): List<MessageInference>
+        before: LocalDateTime = LocalDateTime.now()
+    ): List<Pair<Topic, MessageInference>>
 
     /**
      * Creates a new chat.

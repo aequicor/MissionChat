@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalComposeUiApi::class)
-
 package ru.kyamshanov.missionChat.welcomeScreen
 
 import androidx.compose.animation.AnimatedVisibility
@@ -37,17 +35,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.m3.Markdown
-import kotlinx.collections.immutable.ImmutableList
 import ru.kyamshanov.missionChat.components.glassmorphism
-import ru.kyamshanov.missionChat.models.MessagesStateUI.MessageModel
-import ru.kyamshanov.missionChat.models.MessagesStateUI.MessageModel.MessageType.AI_ASSISTANT
-import ru.kyamshanov.missionChat.models.MessagesStateUI.MessageModel.MessageType.Human
+import ru.kyamshanov.missionChat.domain.models.Identifier
+import ru.kyamshanov.missionChat.presentation.models.MessagePresentationModel
+import ru.kyamshanov.missionChat.presentation.models.MessagePresentationType
 
 
 @Composable
 fun MessagesList(
-    messages: ImmutableList<MessageModel>,
-    onDelete: (messageId: String) -> Unit
+    messages: List<MessagePresentationModel>,
+    onDelete: (messageId: Identifier) -> Unit
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size) {
@@ -67,20 +64,20 @@ fun MessagesList(
             val icon: ImageVector
             val iconDescription: String
             val backgroundColor: Color
-            when (it.messageType) {
-                Human -> {
+            when (it.type) {
+                MessagePresentationType.Human -> {
                     icon = Icons.Default.Person
                     iconDescription = "Human"
                     backgroundColor = MaterialTheme.colorScheme.surface
                 }
 
-                AI_ASSISTANT -> {
+                MessagePresentationType.Assistant -> {
                     icon = Icons.AutoMirrored.Filled.Chat
                     iconDescription = "AI Assistant"
                     backgroundColor = MaterialTheme.colorScheme.surfaceVariant
                 }
 
-                MessageModel.MessageType.SYSTEM -> TODO()
+                MessagePresentationType.System -> TODO()
             }
 
             ChatCard(
@@ -91,7 +88,7 @@ fun MessagesList(
                 ),
                 icon = icon,
                 iconContentDescription = iconDescription,
-                title = it.name,
+                title = "Xyi",
                 lastMessage = it.content,
                 textColor = MaterialTheme.colorScheme.onSurface,
                 backgroundColor = backgroundColor,
@@ -101,6 +98,7 @@ fun MessagesList(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ChatCard(
     icon: ImageVector,

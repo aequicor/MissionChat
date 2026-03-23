@@ -1,16 +1,13 @@
 package ru.kyamshanov.missionChat.data.repositories
 
+import androidx.room.immediateTransaction
+import androidx.room.useWriterConnection
 import kotlinx.datetime.LocalDateTime
 import ru.kyamshanov.missionChat.data.database.AppDatabase
 import ru.kyamshanov.missionChat.data.database.entities.ChatEntity
 import ru.kyamshanov.missionChat.data.database.entities.MessageEntity
 import ru.kyamshanov.missionChat.data.database.entities.TopicEntity
-import ru.kyamshanov.missionChat.domain.models.Interlocutor
-import ru.kyamshanov.missionChat.domain.models.MessageInference
-import ru.kyamshanov.missionChat.domain.models.Tool
-import ru.kyamshanov.missionChat.domain.models.Topic
-import ru.kyamshanov.missionChat.domain.models.Chat
-import ru.kyamshanov.missionChat.domain.models.Identifier
+import ru.kyamshanov.missionChat.domain.models.*
 import ru.kyamshanov.missionChat.domain.repositories.ChatRepository
 import ru.kyamshanov.missionChat.domain.utils.nowEpochMilliseconds
 import ru.kyamshanov.missionChat.domain.utils.toEpochMilliseconds
@@ -23,7 +20,7 @@ import ru.kyamshanov.missionChat.domain.utils.toLocalDateTime
  * It maps database entities to domain models and vice versa.
  */
 internal class RoomChatRepository(
-    database: AppDatabase
+    private val database: AppDatabase
 ) : ChatRepository {
 
     private val chatDao = database.chatDao()
@@ -38,9 +35,32 @@ internal class RoomChatRepository(
         return topicDao.getTopics(chatId, limit, before.toEpochMilliseconds()).map { it.toDomain() }
     }
 
-    override suspend fun getMessages(topicId: Identifier, limit: Int, before: LocalDateTime?): List<MessageInference> {
-        val beforeMillis = before?.toEpochMilliseconds() ?: LocalDateTime.nowEpochMilliseconds
-        return messageDao.getMessages(topicId.toString(), limit, beforeMillis).map { it.toDomain() }
+    override suspend fun getMessages(
+        topicId: Identifier,
+        limit: Int,
+        before: LocalDateTime
+    ): List<Pair<Topic, MessageInference>> {
+        val result = mutableListOf<Pair<Topic, MessageInference>>()
+        var currentTopicId: Identifier? = topicId
+        var currentBefore = before.toEpochMilliseconds()
+
+        while (currentTopicId != null && result.size < limit) {
+            val topicEntity = topicDao.getTopicById(currentTopicId) ?: break
+            val domainTopic = topicEntity.toDomain()
+            val needed = limit - result.size
+
+            val messages = messageDao.getMessages(currentTopicId.toString(), needed, currentBefore)
+            result.addAll(messages.map { domainTopic to it.toDomain() })
+
+            val previousTopic = topicDao.getTopics(
+                chatId = topicEntity.chatId,
+                limit = 1,
+                before = topicEntity.createdAt - 1,
+            ).firstOrNull()
+            currentTopicId = previousTopic?.id
+            currentBefore = Long.MAX_VALUE
+        }
+        return result
     }
 
     override suspend fun createChat(title: String, description: String?): Chat {
@@ -50,7 +70,8 @@ internal class RoomChatRepository(
             title = title,
             description = description,
             createdAt = now,
-            updatedAt = now
+            updatedAt = now,
+            headTopic = null,
         )
         chatDao.insertChat(chat)
         return chat.toDomain()
@@ -77,12 +98,16 @@ internal class RoomChatRepository(
             id = Identifier.random(),
             chatId = chatId,
             title = title,
-            previousTopicId = null,
-            nextTopicId = null,
             createdAt = now,
             updatedAt = now
         )
-        topicDao.insertTopic(topic)
+        val chat = chatDao.getChatById(chatId) ?: throw IllegalStateException("Chat with id $chatId not found")
+        database.useWriterConnection { connection ->
+            connection.immediateTransaction {
+                chatDao.updateChat(chat.copy(headTopic = topic.id))
+                topicDao.insertTopic(topic)
+            }
+        }
         return topic.toDomain()
     }
 
@@ -121,7 +146,6 @@ internal class RoomChatRepository(
             type = "ASSISTANT",
             content = message.text,
             assistantAssociatedHumanName = message.associatedHuman?.name,
-            responseStartWith = message.responseStartWith,
             timestamp = message.createdAt.toEpochMilliseconds()
         )
         messageDao.insert(entity)
@@ -141,18 +165,17 @@ internal class RoomChatRepository(
         messageDao.deleteMessage(messageId)
     }
 
-    private fun ChatEntity.toDomain() = Chat(
+    private suspend fun ChatEntity.toDomain() = Chat(
         id = id,
         title = title,
         createdAt = createdAt.toLocalDateTime(),
-        updatedAt = updatedAt.toLocalDateTime()
+        updatedAt = updatedAt.toLocalDateTime(),
+        headTopic = headTopic?.let { topicDao.getTopicById(it) }?.toDomain()
     )
 
     private fun TopicEntity.toDomain() = Topic(
         id = id,
         title = title,
-        previousTopicId = previousTopicId,
-        nextTopicId = nextTopicId,
         createdAt = createdAt.toLocalDateTime(),
         updatedAt = updatedAt.toLocalDateTime()
     )
@@ -167,12 +190,9 @@ internal class RoomChatRepository(
                 content,
                 dateTime,
                 assistantAssociatedHumanName?.let { Interlocutor.Human(it) },
-                responseStartWith
             )
 
-            "TOOL" -> MessageInference.FunctionCallingResponse(id, content, dateTime, object : Tool {
-                override val id: String = toolId ?: ""
-            })
+            "TOOL" -> TODO()
 
             else -> MessageInference.HumanMessage(id, content, dateTime, Interlocutor.Human("Unknown"))
         }

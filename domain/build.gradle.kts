@@ -2,7 +2,7 @@ import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileInputStream
-import java.util.Properties
+import java.util.*
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -52,6 +52,7 @@ kotlin {
 
             //room
             implementation(libs.androidx.room.runtime)
+            implementation(libs.androidx.room.ktx)
             implementation(libs.androidx.sqlite.bundled)
 
             //kotlinx-datetime

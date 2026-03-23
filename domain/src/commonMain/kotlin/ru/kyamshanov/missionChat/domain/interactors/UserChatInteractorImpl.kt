@@ -1,22 +1,16 @@
-@file:OptIn(ExperimentalTime::class)
-
 package ru.kyamshanov.missionChat.domain.interactors
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import ru.kyamshanov.missionChat.`domain-legacy`.models.ChatWindowState
-import ru.kyamshanov.missionChat.domain.models.Identifier
-import ru.kyamshanov.missionChat.domain.models.MessageInference
 import ru.kyamshanov.missionChat.data.models.Message
 import ru.kyamshanov.missionChat.data.network.DeepseekApi
 import ru.kyamshanov.missionChat.domain.models.Chat
+import ru.kyamshanov.missionChat.domain.models.Identifier
+import ru.kyamshanov.missionChat.domain.models.MessageInference
 import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.domain.repositories.ChatRepository
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
+import ru.kyamshanov.missionChat.domain.utils.now
 
 internal class UserChatInteractorImpl(
     private val repository: ChatRepository,
@@ -27,52 +21,53 @@ internal class UserChatInteractorImpl(
         repository.getChats(limit, before)
 
     override suspend fun getTopics(chatId: Identifier, limit: Int, before: LocalDateTime): List<Topic> =
-        repository.getTopics(chatId.toUuid(), limit, before)
+        repository.getTopics(chatId, limit, before)
 
-    override suspend fun getMessages(topicId: Identifier, limit: Int, before: LocalDateTime): List<MessageInference> {
-        return repository.getMessages(topicId.toUuid(), limit, before)
-    }
+    override suspend fun getMessages(
+        topicId: Identifier,
+        limit: Int,
+        before: LocalDateTime
+    ): List<Pair<Topic, MessageInference>> = repository.getMessages(topicId, limit, before)
 
     override suspend fun createChat(title: String, description: String?): Chat =
         repository.createChat(title, description)
 
     override suspend fun createTopic(chatId: Identifier, title: String): Topic =
-        repository.createTopic(chatId.toUuid(), title)
+        repository.createTopic(chatId, title)
 
-    override fun sendMessage(topicId: Identifier, text: String): Flow<ChatWindowState.Answering> = flow {
-        val userMessage = repository.sendMessage(topicId.toUuid(), text)
-        val currentMessages = repository.getMessages(topicId.toUuid(), limit = 50)
-        val chatHistory = currentMessages.map { Message(it.role, it.text) }
+    override fun sendMessage(
+        context: List<MessageInference>,
+        message: MessageInference.HumanMessage
+    ): Flow<MessageInference> = flow {
+        val chatHistory = context.mapNotNull { inference ->
+            when (inference) {
+                is MessageInference.SystemMessage -> Message(role = "system", content = inference.text)
+                is MessageInference.HumanMessage -> Message(role = "user", content = inference.text)
+                is MessageInference.AssistantMessage -> Message(role = "assistant", content = inference.text)
+                else -> null
+            }
+        }
+
         val assistantMessageId = Identifier.random()
-        var currentResponseContent = ""
+        var fullText = ""
 
         api.chatCompletionStream(
-            userMessage = text,
-            chatHistory = chatHistory.filterNot { it.role == "user" && it.content == text }
-        )
-            .collect { chunk ->
-                currentResponseContent += chunk
-                val answeringState = ChatWindowState.Answering(
-                    MessageInference.AssistantMessage(
-                        id = assistantMessageId,
-                        text = currentResponseContent,
-                        createdAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
-                        associatedHuman = (userMessage as? MessageInference.HumanMessage)?.human
-                    )
+            userMessage = message.text,
+            chatHistory = chatHistory
+        ).collect { chunk ->
+            fullText += chunk
+            emit(
+                MessageInference.AssistantMessage(
+                    id = assistantMessageId,
+                    text = fullText,
+                    createdAt = LocalDateTime.now()
                 )
-                emit(answeringState)
-            }
+            )
+        }
     }
 
     override suspend fun deleteMessage(messageId: Identifier) {
-        repository.deleteMessage(messageId.toUuid())
+        repository.deleteMessage(messageId)
     }
 
-    private val MessageInference.role: String
-        get() = when (this) {
-            is MessageInference.AssistantMessage -> "assistant"
-            is MessageInference.HumanMessage -> "user"
-            is MessageInference.SystemMessage -> "system"
-            is MessageInference.FunctionCallingResponse -> "tool"
-        }
 }

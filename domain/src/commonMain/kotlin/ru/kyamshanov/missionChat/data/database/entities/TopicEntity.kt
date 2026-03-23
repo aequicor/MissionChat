@@ -9,8 +9,6 @@ data class TopicEntity(
     @PrimaryKey val id: Identifier,
     val chatId: Identifier,
     val title: String,
-    val previousTopicId: Identifier?,
-    val nextTopicId: Identifier?,
     val createdAt: Long,
     val updatedAt: Long
 )

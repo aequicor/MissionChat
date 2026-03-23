@@ -15,14 +15,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pro.respawn.flowmvi.compose.dsl.subscribe
 import ru.kyamshanov.missionChat.ChatInputComponent
 import ru.kyamshanov.missionChat.MessagesComponent
 import ru.kyamshanov.missionChat.components.WindowScaffold
 import ru.kyamshanov.missionChat.components.glassmorphism
 import ru.kyamshanov.missionChat.presentation.models.MessagesIntent
-import ru.kyamshanov.missionChat.models.MessagesStateUI
-import ru.kyamshanov.missionChat.models.subscribeAsUiState
-import ru.kyamshanov.missionChat.models.toUI
+import ru.kyamshanov.missionChat.presentation.models.MessagesState
 
 @Composable
 fun WelcomeChat(
@@ -101,8 +100,8 @@ fun WelcomeChat(
                         shape = RoundedCornerShape(24.dp)
                     )
             ) {
-                val mState by messagesComponent.subscribeAsUiState { it.toUI() }
-                val isGenerating = (mState as? MessagesStateUI.Loaded)?.isGenerating == true
+                val mState by messagesComponent.subscribe()
+                val isGenerating = (mState as? MessagesState.Loaded)?.isGenerating == true
 
                 InputSectionContent(chatInputComponent, isGenerating)
             }
@@ -173,9 +172,9 @@ fun HeaderContent(
 fun MessagesSection(
     component: MessagesComponent,
 ) {
-    val state by component.subscribeAsUiState { it.toUI() }
+    val state by component.subscribe()
     when (val model = state) {
-        is MessagesStateUI.Loaded -> {
+        is MessagesState.Loaded -> {
             MessagesList(
                 messages = model.messages,
                 onDelete = { component.intent(MessagesIntent.DeleteMessage(it)) })

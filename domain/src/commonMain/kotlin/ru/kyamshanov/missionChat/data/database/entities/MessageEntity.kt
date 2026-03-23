@@ -12,7 +12,6 @@ data class MessageEntity(
     val content: String,
     val humanName: String? = null,
     val assistantAssociatedHumanName: String? = null,
-    val responseStartWith: String? = null,
     val toolId: String? = null,
     val timestamp: Long
 )
