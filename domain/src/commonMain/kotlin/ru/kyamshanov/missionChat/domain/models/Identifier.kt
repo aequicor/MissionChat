@@ -36,6 +36,8 @@ value class Identifier(
          * Generates a new random [Identifier].
          */
         fun random(): Identifier = Identifier(Uuid.random())
+
+        fun fromString(identifier: String): Identifier = Identifier(Uuid.parse(identifier))
     }
 }
 

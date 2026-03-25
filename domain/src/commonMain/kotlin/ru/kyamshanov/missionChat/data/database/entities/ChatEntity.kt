@@ -12,4 +12,5 @@ data class ChatEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val headTopic: Identifier,
+    val isArchived: Boolean,
 )

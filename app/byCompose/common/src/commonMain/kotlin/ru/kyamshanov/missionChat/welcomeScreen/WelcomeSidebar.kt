@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
+import ru.kyamshanov.missionChat.presentation.models.ChatUiModel
+import ru.kyamshanov.missionChat.presentation.models.TopicUiModel
+import ru.kyamshanov.missionChat.presentation.models.UiID
 
 @Composable
 fun WelcomeSidebar(
@@ -42,28 +46,10 @@ fun WelcomeSidebar(
     var isArchiveExpanded by remember { mutableStateOf(false) }
 
     val sidebarState by sidebarComponent.state.collectAsStateWithLifecycle()
-    val selectedChatId = sidebarState.selectedChat?.id?.toString()
+    val selectedChatId = sidebarState.selectedChat?.id
 
-    // Mock Data
-    val activeChats = remember {
-        sidebarState.chatsWithTopics.map { (chat, topics) ->
-            ChatUiModel(
-                id = chat.id.toString(),
-                title = chat.title,
-                icon = Icons.AutoMirrored.Filled.Chat,
-                topics = topics.map { topic ->
-                    TopicUiModel(id = topic.id.toString(), title = topic.title)
-                }
-            )
-        }
-    }
-
-    val archivedChats = remember {
-        mutableStateListOf(
-            ChatUiModel("4", "Old Project", Icons.Default.Archive),
-            ChatUiModel("5", "Ideas 2023", Icons.Default.Archive)
-        )
-    }
+    val activeChats = sidebarState.activeChats
+    val archivedChats = sidebarState.archivedChats
     Column(modifier = modifier) {
         // Scrollable Content Area
         LazyColumn(
@@ -88,12 +74,10 @@ fun WelcomeSidebar(
                     SidebarItem(
                         chat = chat,
                         isSelected = chat.id == selectedChatId,
-                        onClick = { sidebarComponent.onSelect() },
+                        onClick = { sidebarComponent.onSelect(chat, it) },
                         onOpenAllTopics = { /* Handle opening all topics view */ },
                         onArchive = {
-                            TODO()
-                            //  activeChats.remove(chat)
-                            archivedChats.add(chat)
+                            sidebarComponent.archiveChat(chat)
                         }
                     )
                 }
@@ -119,12 +103,9 @@ fun WelcomeSidebar(
                     SidebarItem(
                         chat = chat,
                         isSelected = chat.id == selectedChatId,
-                        onClick = { selectedChatId = chat.id },
-                        onDelete = { archivedChats.remove(chat) },
+                        onDelete = { sidebarComponent.deleteChat(chat) },
                         onUnarchive = {
-                            TODO()
-                            archivedChats.remove(chat)
-                            // activeChats.add(chat)
+                           sidebarComponent.unarchiveChat(chat)
                         }
                     )
                 }
@@ -173,7 +154,7 @@ private fun CollapsibleSectionHeader(
 private fun SidebarItem(
     chat: ChatUiModel,
     isSelected: Boolean = false,
-    onClick: () -> Unit,
+    onClick: ((topic: TopicUiModel) -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     onArchive: (() -> Unit)? = null,
     onUnarchive: (() -> Unit)? = null,
@@ -200,12 +181,11 @@ private fun SidebarItem(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(backgroundColor)
-                .clickable(onClick = onClick)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = chat.icon,
+                imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
                 tint = contentColor.copy(alpha = if (isSelected) 1f else 0.7f),
                 modifier = Modifier.size(18.dp)
@@ -292,7 +272,13 @@ private fun SidebarItem(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { /* Handle topic click */ }
+                                .let {
+                                    if(onClick != null) {
+                                        it.clickable { onClick(topic) }
+                                    } else {
+                                        it
+                                    }
+                                }
                                 .padding(vertical = 6.dp, horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

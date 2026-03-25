@@ -27,10 +27,13 @@ internal class RoomChatRepository(
     private val topicDao = database.topicDao()
     private val messageDao = database.messageDao()
 
-    override suspend fun getChats(limit: Int, before: LocalDateTime): List<Chat> {
-        return chatDao.getChats(limit, before.toEpochMilliseconds())
+    override suspend fun getChats(
+        limit: Int,
+        before: LocalDateTime,
+        isArchived: Boolean
+    ): List<Chat> =
+        chatDao.getChats(limit, before.toEpochMilliseconds(), isArchived)
             .map { it.toDomain(topicDao.getTopicById(it.headTopic)!!.toDomain()) }
-    }
 
     override suspend fun getTopics(chatId: Identifier, limit: Int, before: LocalDateTime): List<Topic> {
         return topicDao.getTopics(chatId, limit, before.toEpochMilliseconds()).map { it.toDomain() }
@@ -84,6 +87,7 @@ internal class RoomChatRepository(
             createdAt = now,
             updatedAt = now,
             headTopic = topicId,
+            isArchived = false,
         )
         database.useWriterConnection { transactor ->
             transactor.immediateTransaction {
@@ -95,12 +99,18 @@ internal class RoomChatRepository(
         return chat.toDomain(topic.toDomain())
     }
 
-    override suspend fun updateChat(chatId: Identifier, title: String?, description: String?): Chat {
+    override suspend fun updateChat(
+        chatId: Identifier,
+        title: String?,
+        description: String?,
+        isArchived: Boolean?
+    ): Chat {
         val existing = chatDao.getChatById(chatId) ?: throw IllegalArgumentException("Chat not found")
         val updated = existing.copy(
             title = title ?: existing.title,
             description = description ?: existing.description,
             updatedAt = LocalDateTime.nowEpochMilliseconds,
+            isArchived = isArchived ?: existing.isArchived,
         )
         chatDao.updateChat(updated)
         return updated.toDomain(topicDao.getTopicById(updated.headTopic)?.toDomain()!!)

@@ -9,12 +9,8 @@ import ru.kyamshanov.missionChat.presentation.contracts.WelcomeState
 
 /**
  * Component for the Welcome Screen, managing the main chat interface.
- *
- * This component acts as a container for the message history and the input field,
- * handling the business logic via the MVI [Store] pattern.
  */
-interface WelcomeScreenComponent :
-    Store<WelcomeState, WelcomeIntent, WelcomeAction> {
+interface WelcomeScreenComponent {
 
     /**
      * Component for managing chats and topics sidebar.

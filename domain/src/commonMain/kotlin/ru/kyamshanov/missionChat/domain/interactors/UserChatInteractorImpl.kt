@@ -17,8 +17,15 @@ internal class UserChatInteractorImpl(
     private val api: DeepseekApi,
 ) : UserChatInteractor {
 
-    override suspend fun getChats(limit: Int, before: LocalDateTime): List<Chat> =
-        repository.getChats(limit, before)
+    override suspend fun getActiveChats(
+        limit: Int,
+        before: LocalDateTime
+    ): List<Chat> = repository.getChats(limit = limit, before = before, isArchived = false)
+
+    override suspend fun getArchivedChats(
+        limit: Int,
+        before: LocalDateTime
+    ): List<Chat> = repository.getChats(limit = limit, before = before, isArchived = true)
 
     override suspend fun getTopics(chatId: Identifier, limit: Int, before: LocalDateTime): List<Topic> =
         repository.getTopics(chatId, limit, before)
@@ -68,6 +75,13 @@ internal class UserChatInteractorImpl(
 
     override suspend fun deleteMessage(messageId: Identifier) {
         repository.deleteMessage(messageId)
+    }
+
+    override suspend fun setArchivationChat(
+        chat: Chat,
+        isArchived: Boolean
+    ) {
+        repository.updateChat(chat.id, null, null, isArchived = isArchived)
     }
 
 }

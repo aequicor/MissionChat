@@ -4,6 +4,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.parameter.parametersOf
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
+import ru.kyamshanov.missionChat.presentation.components.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent
@@ -24,7 +25,7 @@ internal interface ComponentFactory {
 
     fun createSidebarComponent(
         params: SidebarParams,
-    ): SidebarComponent
+    ): InternalSidebarComponent
 }
 
 internal class KoinComponentFactory : ComponentFactory, KoinComponent {
@@ -38,6 +39,6 @@ internal class KoinComponentFactory : ComponentFactory, KoinComponent {
     override fun createMessagesComponent(params: MessagesParams): MessagesComponent =
         get { parametersOf(params) }
 
-    override fun createSidebarComponent(params: SidebarParams): SidebarComponent =
+    override fun createSidebarComponent(params: SidebarParams): InternalSidebarComponent =
         get { parametersOf(params) }
 }

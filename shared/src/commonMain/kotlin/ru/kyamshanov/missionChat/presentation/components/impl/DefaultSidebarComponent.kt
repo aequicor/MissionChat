@@ -1,66 +1,99 @@
 package ru.kyamshanov.missionChat.presentation.components.impl
 
 import com.arkivanov.decompose.ComponentContext
-import com.arkivanov.essenty.lifecycle.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractor
 import ru.kyamshanov.missionChat.domain.models.Chat
+import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.domain.models.Topic
+import ru.kyamshanov.missionChat.presentation.components.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
+import ru.kyamshanov.missionChat.presentation.models.ChatUiModel
+import ru.kyamshanov.missionChat.presentation.models.TopicUiModel
+import ru.kyamshanov.missionChat.presentation.models.toIdentifier
+import ru.kyamshanov.missionChat.presentation.models.toUiID
+import ru.kyamshanov.missionChat.utils.toUI
 
 class DefaultSidebarComponent(
     componentContext: ComponentContext,
-    private val userChatInteractor: UserChatInteractor,
-    private val onSelectedCallback: (Chat, Topic) -> Unit,
-) : SidebarComponent, ComponentContext by componentContext {
+    private val onSelectedCallback: (chatId: Identifier, topicId: Identifier) -> Unit,
+    private val onArchiveChat: (chatId: Identifier) -> Unit,
+    private val onUnarchiveChat: (chatId: Identifier) -> Unit,
+) : InternalSidebarComponent, ComponentContext by componentContext {
 
-    private val scope = coroutineScope()
     private val _state = MutableStateFlow(SidebarComponent.State())
     override val state: StateFlow<SidebarComponent.State> = _state.asStateFlow()
 
-    init {
-        loadChatsAndTopics()
+    override fun onSelect(
+        chat: ChatUiModel,
+        topic: TopicUiModel
+    ) {
+        onSelectedCallback(chat.id.toIdentifier(), topic.id.toIdentifier())
+        _state.update { it.copy(selectedChat = chat, selectedTopic = topic) }
     }
 
-    override fun onSelect(
-        chat: Chat,
-        topic: Topic
+
+    override fun archiveChat(chat: ChatUiModel) {
+        onArchiveChat(chat.id.toIdentifier())
+        _state.update {
+            it.copy(
+                activeChats = it.activeChats - chat,
+                archivedChats = it.archivedChats + chat,
+            )
+        }
+    }
+
+    override fun unarchiveChat(chat: ChatUiModel) {
+        onUnarchiveChat(chat.id.toIdentifier())
+        _state.update {
+            it.copy(
+                activeChats = it.activeChats + chat,
+                archivedChats = it.archivedChats - chat,
+            )
+        }
+    }
+
+    override fun deleteChat(chat: ChatUiModel) {
+        TODO("Not yet implemented")
+    }
+
+    override fun updateChats(
+        activeChats: Map<Chat, List<Topic>>,
+        archivedChats: Map<Chat, List<Topic>>
     ) {
-        onSelectedCallback(chat, topic)
+        _state.update {
+            it.copy(
+                activeChats = activeChats.toUI(),
+                archivedChats = archivedChats.toUI(),
+            )
+        }
     }
 
     override fun addTopic(
         chat: Chat,
         topic: Topic
     ) {
-        _state.update {
-            val map = it.chatsWithTopics.toMutableMap()
-            map[chat] = map.getOrDefault(chat, emptyList()) + topic
-            it.copy(chatsWithTopics = map)
+        _state.update { value ->
+            val chatIndex = value.activeChats.indexOfFirst { it.id == chat.id.toUiID() }
+            val chat = value.activeChats[chatIndex]
+            val updatedTopics = chat.topics + topic.toUI()
+            val updatedChat = chat.copy(topics = updatedTopics)
+            value.copy(
+                archivedChats = value.activeChats.toMutableList().also { it[chatIndex] = updatedChat }
+            )
         }
     }
 
-    private fun loadChatsAndTopics() {
-        scope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
-            try {
-                val chats = userChatInteractor.getChats()
-                val chatsWithTopics = mutableMapOf<Chat, List<Topic>>()
-                for (chat in chats) {
-                    val topics = userChatInteractor.getTopics(chat.id)
-                    chatsWithTopics[chat] = topics
-                }
-                _state.update { it.copy(chatsWithTopics = chatsWithTopics, isLoading = false) }
-                chats.firstOrNull()?.let { chat ->
-                    chatsWithTopics[chat]?.firstOrNull()?.let { topic -> onSelect(chat, topic) }
-                }
-            } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = e) }
-            }
+    override fun selectTopic(
+        chat: Chat,
+        topic: Topic
+    ) {
+        _state.update { value ->
+            val chat = value.activeChats.first { it.id == chat.id.toUiID() }
+            val topic = chat.topics.first { it.id == topic.id.toUiID() }
+            value.copy(selectedChat = chat, selectedTopic = topic)
         }
     }
 

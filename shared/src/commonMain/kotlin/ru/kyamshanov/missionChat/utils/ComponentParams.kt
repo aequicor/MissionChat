@@ -2,6 +2,7 @@ package ru.kyamshanov.missionChat.utils
 
 import com.arkivanov.decompose.ComponentContext
 import ru.kyamshanov.missionChat.domain.models.Chat
+import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.domain.models.Topic
 
 /**
@@ -17,7 +18,9 @@ data class WelcomeScreenParams(
  */
 data class SidebarParams(
     val componentContext: ComponentContext,
-    val onSelected: (Chat, Topic) -> Unit,
+    val onSelectedCallback: (chatId: Identifier, topicId: Identifier) -> Unit,
+    val onArchiveChat: (chatId: Identifier) -> Unit,
+    val onUnarchiveChat: (chatId: Identifier) -> Unit,
 )
 
 /**

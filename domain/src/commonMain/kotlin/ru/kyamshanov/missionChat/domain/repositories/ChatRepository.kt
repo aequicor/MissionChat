@@ -22,7 +22,8 @@ internal interface ChatRepository {
      */
     suspend fun getChats(
         limit: Int,
-        before: LocalDateTime = LocalDateTime.now()
+        before: LocalDateTime,
+        isArchived: Boolean
     ): List<Chat>
 
     /**
@@ -70,7 +71,12 @@ internal interface ChatRepository {
      * @param description The new description (optional).
      * @return The updated [Chat] object.
      */
-    suspend fun updateChat(chatId: Identifier, title: String?, description: String?): Chat
+    suspend fun updateChat(
+        chatId: Identifier,
+        title: String?,
+        description: String?,
+        isArchived: Boolean?
+    ): Chat
 
     /**
      * Deletes a chat by its identifier.

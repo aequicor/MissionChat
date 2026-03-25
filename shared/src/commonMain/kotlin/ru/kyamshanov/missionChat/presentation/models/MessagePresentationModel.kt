@@ -1,9 +1,7 @@
 package ru.kyamshanov.missionChat.presentation.models
 
-import ru.kyamshanov.missionChat.domain.models.Identifier
-
 data class MessagePresentationModel(
-    val id: Identifier,
+    val id: UiID,
     val content: String,
     val type: MessagePresentationType
 )

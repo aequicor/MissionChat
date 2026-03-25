@@ -18,6 +18,7 @@ import ru.kyamshanov.missionChat.domain.utils.now
 import ru.kyamshanov.missionChat.presentation.contracts.MessagesAction
 import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
 import ru.kyamshanov.missionChat.presentation.contracts.MessagesState
+import ru.kyamshanov.missionChat.presentation.models.toIdentifier
 import ru.kyamshanov.missionChat.utils.add
 import ru.kyamshanov.missionChat.utils.set
 import ru.kyamshanov.missionChat.utils.toTopics
@@ -56,7 +57,13 @@ internal class ChatContainer(
 
         reduce { intent ->
             when (intent) {
-                is MessagesIntent.DeleteMessage -> deleteMessage(intent.topicId, intent.messageId)
+                is MessagesIntent.DeleteMessage -> {
+                    deleteMessage(
+                        topicId = intent.topicId.toIdentifier(),
+                        messageId = intent.messageId.toIdentifier()
+                    )
+                }
+
                 MessagesIntent.LoadNextMessages -> loadMessages()
                 is MessagesIntent.SendNewMessage -> sendMessage(intent.message)
                 MessagesIntent.StopGeneration -> stopGeneration()
@@ -162,6 +169,7 @@ internal class ChatContainer(
             val chat = userChatInteractor.createChat(title = "New Chat", null, "New topic")
             currentChatId = chat.id
             currentTopicId = chat.headTopic.id
+            messages = messages.toMutableMap().apply { put(chat.headTopic, emptyList()) }
             action(MessagesAction.ChatCreated(chat))
         } catch (e: Exception) {
             updateState { MessagesState.Error(e) }

@@ -7,6 +7,7 @@ import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
+import ru.kyamshanov.missionChat.presentation.models.UiID
 
 /**
  * Represents the UI state for the Messages screen.
@@ -52,7 +53,7 @@ sealed interface MessagesIntent : MVIIntent {
      * @property topicId The identifier of the topic.
      * @property messageId The identifier of the message to delete.
      */
-    data class DeleteMessage(val topicId: Identifier, val messageId: Identifier) : MessagesIntent
+    data class DeleteMessage(val topicId: UiID, val messageId: UiID) : MessagesIntent
 
     /**
      * Intent to stop the current AI generation process.

@@ -17,12 +17,10 @@ fun WelcomeScreen(
 ) {
     AppTheme {
         GlassBackground {
-            val modelState by component.subscribeAsUiState { it.toUI() }
-
             WelcomeChat(
-                title = modelState.title,
+                title = "Hello world!",
                 messagesComponentProvider = {
-                    component.chatContainer.subscribeAsState().value.active.instance.component
+                    component.chatContainer
                 },
                 chatInputComponent = component.chatInputComponent,
                 sidebarComponent = component.sidebarComponent,

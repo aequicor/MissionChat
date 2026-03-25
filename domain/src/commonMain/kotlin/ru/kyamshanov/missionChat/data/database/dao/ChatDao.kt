@@ -10,8 +10,8 @@ import ru.kyamshanov.missionChat.domain.models.Identifier
 
 @Dao
 interface ChatDao {
-    @Query("SELECT * FROM chats WHERE createdAt < :before ORDER BY createdAt DESC LIMIT :limit")
-    suspend fun getChats(limit: Int, before: Long): List<ChatEntity>
+    @Query("SELECT * FROM chats WHERE createdAt < :before AND isArchived = :isArchived ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getChats(limit: Int, before: Long, isArchived : Boolean): List<ChatEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChat(chat: ChatEntity)

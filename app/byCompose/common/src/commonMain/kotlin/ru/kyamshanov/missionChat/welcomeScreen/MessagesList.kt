@@ -36,15 +36,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.m3.Markdown
 import ru.kyamshanov.missionChat.components.glassmorphism
-import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
 import ru.kyamshanov.missionChat.presentation.models.MessagePresentationType
+import ru.kyamshanov.missionChat.presentation.models.UiID
 
 
 @Composable
 fun MessagesList(
     messages: List<ChatTopicModel>,
-    onDelete: (topicId: Identifier, messageId: Identifier) -> Unit
+    onDelete: (topicId: UiID, messageId: UiID) -> Unit
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size) {

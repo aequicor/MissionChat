@@ -2,6 +2,7 @@ package ru.kyamshanov.missionChat.di
 
 import org.koin.dsl.module
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
+import ru.kyamshanov.missionChat.presentation.components.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent
@@ -11,7 +12,6 @@ import ru.kyamshanov.missionChat.presentation.components.impl.DefaultSidebarComp
 import ru.kyamshanov.missionChat.presentation.components.impl.DefaultWelcomeScreenComponent
 import ru.kyamshanov.missionChat.presentation.container.ChatContainer
 import ru.kyamshanov.missionChat.presentation.container.ChatInputContainer
-import ru.kyamshanov.missionChat.presentation.container.WelcomeScreenContainer
 import ru.kyamshanov.missionChat.presentation.factories.KoinRootComponentFactory
 import ru.kyamshanov.missionChat.presentation.factories.RootComponentFactory
 import ru.kyamshanov.missionChat.utils.*
@@ -24,8 +24,8 @@ val sharedModule = module {
     factory<WelcomeScreenComponent> { (params: WelcomeScreenParams) ->
         DefaultWelcomeScreenComponent(
             componentContext = params.componentContext,
-            containerFactory = { WelcomeScreenContainer() },
             componentFactory = get(),
+            userChatInteractor = get()
         )
     }
 
@@ -47,11 +47,12 @@ val sharedModule = module {
         )
     }
 
-    factory<SidebarComponent> { (params: SidebarParams) ->
+    factory<InternalSidebarComponent> { (params: SidebarParams) ->
         DefaultSidebarComponent(
             componentContext = params.componentContext,
-            userChatInteractor = get(),
-            onSelectedCallback = params.onSelected
+            onSelectedCallback = params.onSelectedCallback,
+            onArchiveChat = params.onArchiveChat,
+            onUnarchiveChat = params.onUnarchiveChat,
         )
     }
 }

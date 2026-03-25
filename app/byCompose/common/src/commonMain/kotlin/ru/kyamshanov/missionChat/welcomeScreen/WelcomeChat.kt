@@ -15,19 +15,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.arkivanov.decompose.extensions.compose.stack.Children
+import com.arkivanov.decompose.extensions.compose.stack.animation.fade
+import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import com.arkivanov.decompose.router.stack.ChildStack
+import com.arkivanov.decompose.value.Value
 import pro.respawn.flowmvi.compose.dsl.subscribe
+import ru.kyamshanov.missionChat.DetailsContent
 import ru.kyamshanov.missionChat.components.WindowScaffold
 import ru.kyamshanov.missionChat.components.glassmorphism
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
 import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
+import ru.kyamshanov.missionChat.presentation.components.RootComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
+import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent.MessagesChat
 import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
 import ru.kyamshanov.missionChat.presentation.contracts.MessagesState
 
 @Composable
 fun WelcomeChat(
     title: String,
-    messagesComponentProvider: @Composable () -> MessagesComponent,
+    messagesComponentProvider: @Composable () -> Value<ChildStack<*, MessagesChat>>,
     chatInputComponent: ChatInputComponent,
     sidebarComponent: SidebarComponent,
     modifier: Modifier = Modifier
@@ -91,22 +100,30 @@ fun WelcomeChat(
         }) {
 
 
-        Column {
-            val messagesComponent = messagesComponentProvider()
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp)) {
-                MessagesSection(messagesComponent)
-            }
-            Box(
-                modifier = Modifier.fillMaxWidth()
-                    .glassmorphism(
-                        backgroundColor = MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(24.dp)
-                    )
-            ) {
-                val mState by messagesComponent.subscribe()
-                val isGenerating = (mState as? MessagesState.Loaded)?.isGenerating == true
+        val messagesComponentState by messagesComponentProvider().subscribeAsState()
 
-                InputSectionContent(chatInputComponent, isGenerating)
+        Children(
+            stack = messagesComponentState,
+            animation = stackAnimation(fade()),
+        ) {
+            Column {
+                val messagesComponent = it.instance.component
+
+                Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp)) {
+                    MessagesSection(messagesComponent)
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                        .glassmorphism(
+                            backgroundColor = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                ) {
+                    val mState by messagesComponent.subscribe()
+                    val isGenerating = (mState as? MessagesState.Loaded)?.isGenerating == true
+
+                    InputSectionContent(chatInputComponent, isGenerating)
+                }
             }
         }
     }

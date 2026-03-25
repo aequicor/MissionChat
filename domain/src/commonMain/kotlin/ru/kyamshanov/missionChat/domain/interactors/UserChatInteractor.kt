@@ -19,10 +19,15 @@ interface UserChatInteractor {
      * @param before The timestamp to fetch chats created before.
      * @return A list of [Chat] objects.
      */
-    suspend fun getChats(
+    suspend fun getActiveChats(
         limit: Int = 50,
         before: LocalDateTime = LocalDateTime.now(),
     ): List<Chat>
+
+    suspend fun getArchivedChats(
+        limit: Int = 50,
+        before : LocalDateTime = LocalDateTime.now()
+    ) : List<Chat>
 
     /**
      * Retrieves a list of topics within a specific chat.
@@ -79,4 +84,6 @@ interface UserChatInteractor {
      * @param messageId The unique identifier of the message to delete.
      */
     suspend fun deleteMessage(messageId: Identifier)
+
+    suspend fun setArchivationChat(chat: Chat, isArchived: Boolean)
 }
