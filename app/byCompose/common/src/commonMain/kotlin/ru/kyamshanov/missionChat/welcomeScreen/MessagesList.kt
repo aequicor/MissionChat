@@ -37,14 +37,14 @@ import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.m3.Markdown
 import ru.kyamshanov.missionChat.components.glassmorphism
 import ru.kyamshanov.missionChat.domain.models.Identifier
-import ru.kyamshanov.missionChat.presentation.models.MessagePresentationModel
+import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
 import ru.kyamshanov.missionChat.presentation.models.MessagePresentationType
 
 
 @Composable
 fun MessagesList(
-    messages: List<MessagePresentationModel>,
-    onDelete: (messageId: Identifier) -> Unit
+    messages: List<ChatTopicModel>,
+    onDelete: (topicId: Identifier, messageId: Identifier) -> Unit
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size) {
@@ -58,43 +58,50 @@ fun MessagesList(
         state = listState,
         contentPadding = PaddingValues(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
-        reverseLayout = true,
+        //reverseLayout = true,
     ) {
-        items(messages.asReversed(), key = { it.id }) {
-            val icon: ImageVector
-            val iconDescription: String
-            val backgroundColor: Color
-            when (it.type) {
-                MessagePresentationType.Human -> {
-                    icon = Icons.Default.Person
-                    iconDescription = "Human"
-                    backgroundColor = MaterialTheme.colorScheme.surface
-                }
-
-                MessagePresentationType.Assistant -> {
-                    icon = Icons.AutoMirrored.Filled.Chat
-                    iconDescription = "AI Assistant"
-                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant
-                }
-
-                MessagePresentationType.System -> TODO()
+        messages.forEach { (topic, messages) ->
+            stickyHeader(key = topic.id) {
+                Text(topic.title)
             }
 
-            ChatCard(
-                modifier = Modifier.animateItem(
-                    fadeInSpec = tween(300),
-                    fadeOutSpec = tween(10),
-                    placementSpec = spring(stiffness = Spring.StiffnessLow),
-                ),
-                icon = icon,
-                iconContentDescription = iconDescription,
-                title = "Xyi",
-                lastMessage = it.content,
-                textColor = MaterialTheme.colorScheme.onSurface,
-                backgroundColor = backgroundColor,
-                onDelete = { onDelete(it.id) }
-            )
+            items(messages, key = { it.id }) {
+                val icon: ImageVector
+                val iconDescription: String
+                val backgroundColor: Color
+                when (it.type) {
+                    MessagePresentationType.Human -> {
+                        icon = Icons.Default.Person
+                        iconDescription = "Human"
+                        backgroundColor = MaterialTheme.colorScheme.surface
+                    }
+
+                    MessagePresentationType.Assistant -> {
+                        icon = Icons.AutoMirrored.Filled.Chat
+                        iconDescription = "AI Assistant"
+                        backgroundColor = MaterialTheme.colorScheme.surfaceVariant
+                    }
+
+                    MessagePresentationType.System -> TODO()
+                }
+
+                ChatCard(
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = tween(300),
+                        fadeOutSpec = tween(10),
+                        placementSpec = spring(stiffness = Spring.StiffnessLow),
+                    ),
+                    icon = icon,
+                    iconContentDescription = iconDescription,
+                    title = "Xyi",
+                    lastMessage = it.content,
+                    textColor = MaterialTheme.colorScheme.onSurface,
+                    backgroundColor = backgroundColor,
+                    onDelete = { onDelete(topic.id, it.id) }
+                )
+            }
         }
+
     }
 }
 

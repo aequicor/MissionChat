@@ -2,7 +2,7 @@ package ru.kyamshanov.missionChat.models
 
 import androidx.compose.runtime.Immutable
 import pro.respawn.flowmvi.api.MVIState
-import ru.kyamshanov.missionChat.presentation.models.ChatInputState
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputState
 import ru.kyamshanov.missionChat.utils.empty
 
 @Immutable

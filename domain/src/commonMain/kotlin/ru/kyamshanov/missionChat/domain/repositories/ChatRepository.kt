@@ -51,7 +51,7 @@ internal interface ChatRepository {
         topicId: Identifier,
         limit: Int,
         before: LocalDateTime = LocalDateTime.now()
-    ): List<Pair<Topic, MessageInference>>
+    ): LinkedHashMap<Topic, List<MessageInference>>
 
     /**
      * Creates a new chat.
@@ -60,7 +60,7 @@ internal interface ChatRepository {
      * @param description An optional description of the chat.
      * @return The created [Chat] object.
      */
-    suspend fun createChat(title: String, description: String?): Chat
+    suspend fun createChat(title: String, description: String?, firstTopicTitle: String): Chat
 
     /**
      * Updates an existing chat's details.

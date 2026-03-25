@@ -3,9 +3,9 @@ package ru.kyamshanov.missionChat.presentation.container
 import pro.respawn.flowmvi.api.Container
 import pro.respawn.flowmvi.dsl.store
 import pro.respawn.flowmvi.plugins.recover
-import ru.kyamshanov.missionChat.presentation.models.WelcomeAction
-import ru.kyamshanov.missionChat.presentation.models.WelcomeIntent
-import ru.kyamshanov.missionChat.presentation.models.WelcomeState
+import ru.kyamshanov.missionChat.presentation.contracts.WelcomeAction
+import ru.kyamshanov.missionChat.presentation.contracts.WelcomeIntent
+import ru.kyamshanov.missionChat.presentation.contracts.WelcomeState
 
 //private typealias Ctx = PipelineContext<State, Intent, Action>
 

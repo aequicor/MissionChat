@@ -5,9 +5,9 @@ import pro.respawn.flowmvi.dsl.store
 import pro.respawn.flowmvi.dsl.updateStateImmediate
 import pro.respawn.flowmvi.plugins.recover
 import pro.respawn.flowmvi.plugins.reduce
-import ru.kyamshanov.missionChat.presentation.models.ChatInputAction
-import ru.kyamshanov.missionChat.presentation.models.ChatInputIntent
-import ru.kyamshanov.missionChat.presentation.models.ChatInputState
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputAction
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputIntent
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputState
 import ru.kyamshanov.missionChat.utils.empty
 
 internal class ChatInputContainer(

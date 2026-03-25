@@ -3,9 +3,10 @@ package ru.kyamshanov.missionChat.utils
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.parameter.parametersOf
-import ru.kyamshanov.missionChat.ChatInputComponent
-import ru.kyamshanov.missionChat.MessagesComponent
-import ru.kyamshanov.missionChat.WelcomeScreenComponent
+import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
+import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
+import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
+import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent
 
 internal interface ComponentFactory {
 
@@ -20,6 +21,10 @@ internal interface ComponentFactory {
     fun createMessagesComponent(
         params: MessagesParams,
     ): MessagesComponent
+
+    fun createSidebarComponent(
+        params: SidebarParams,
+    ): SidebarComponent
 }
 
 internal class KoinComponentFactory : ComponentFactory, KoinComponent {
@@ -31,5 +36,8 @@ internal class KoinComponentFactory : ComponentFactory, KoinComponent {
         get { parametersOf(params) }
 
     override fun createMessagesComponent(params: MessagesParams): MessagesComponent =
+        get { parametersOf(params) }
+
+    override fun createSidebarComponent(params: SidebarParams): SidebarComponent =
         get { parametersOf(params) }
 }

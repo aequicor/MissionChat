@@ -16,18 +16,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pro.respawn.flowmvi.compose.dsl.subscribe
-import ru.kyamshanov.missionChat.ChatInputComponent
-import ru.kyamshanov.missionChat.MessagesComponent
 import ru.kyamshanov.missionChat.components.WindowScaffold
 import ru.kyamshanov.missionChat.components.glassmorphism
-import ru.kyamshanov.missionChat.presentation.models.MessagesIntent
-import ru.kyamshanov.missionChat.presentation.models.MessagesState
+import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
+import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
+import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
+import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
+import ru.kyamshanov.missionChat.presentation.contracts.MessagesState
 
 @Composable
 fun WelcomeChat(
     title: String,
-    messagesComponent: MessagesComponent,
+    messagesComponentProvider: @Composable () -> MessagesComponent,
     chatInputComponent: ChatInputComponent,
+    sidebarComponent: SidebarComponent,
     modifier: Modifier = Modifier
 ) {
     var floatingSlidebarVisibility by remember { mutableStateOf(false) }
@@ -47,7 +49,7 @@ fun WelcomeChat(
                         )
                         .padding(16.dp)
                 ) {
-                    WelcomeSlidebar()
+                    WelcomeSidebar(sidebarComponent)
                 }
             }
         },
@@ -71,7 +73,7 @@ fun WelcomeChat(
                             contentDescription = "Close"
                         )
                     }
-                    WelcomeSlidebar(modifier.padding(8.dp, 0.dp, 8.dp, 8.dp))
+                    WelcomeSidebar(sidebarComponent, modifier.padding(8.dp, 0.dp, 8.dp, 8.dp))
                 }
             }
         },
@@ -90,6 +92,7 @@ fun WelcomeChat(
 
 
         Column {
+            val messagesComponent = messagesComponentProvider()
             Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp)) {
                 MessagesSection(messagesComponent)
             }
@@ -176,8 +179,8 @@ fun MessagesSection(
     when (val model = state) {
         is MessagesState.Loaded -> {
             MessagesList(
-                messages = model.messages,
-                onDelete = { component.intent(MessagesIntent.DeleteMessage(it)) })
+                messages = model.topics,
+                onDelete = { t, m -> component.intent(MessagesIntent.DeleteMessage(t, m)) })
         }
 
         else -> Box(Modifier.fillMaxSize()) {

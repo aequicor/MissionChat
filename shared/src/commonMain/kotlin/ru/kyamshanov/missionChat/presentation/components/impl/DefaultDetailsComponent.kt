@@ -1,9 +1,10 @@
-package ru.kyamshanov.missionChat
+package ru.kyamshanov.missionChat.presentation.components.impl
 
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
-import ru.kyamshanov.missionChat.DetailsComponent.Model
+import ru.kyamshanov.missionChat.presentation.components.DetailsComponent
+import ru.kyamshanov.missionChat.presentation.components.DetailsComponent.Model
 
 class DefaultDetailsComponent(
     componentContext: ComponentContext,

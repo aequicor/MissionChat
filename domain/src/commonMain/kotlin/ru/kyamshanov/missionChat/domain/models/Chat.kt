@@ -15,5 +15,5 @@ data class Chat(
     val title: String,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
-    val headTopic: Topic?,
+    val headTopic: Topic,
 )

@@ -11,5 +11,5 @@ data class ChatEntity(
     val description: String?,
     val createdAt: Long,
     val updatedAt: Long,
-    val headTopic: Identifier?,
+    val headTopic: Identifier,
 )

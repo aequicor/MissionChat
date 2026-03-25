@@ -1,7 +1,7 @@
 package ru.kyamshanov.missionChat.models
 
 import androidx.compose.runtime.Immutable
-import ru.kyamshanov.missionChat.presentation.models.WelcomeState
+import ru.kyamshanov.missionChat.presentation.contracts.WelcomeState
 
 @Immutable
 data class WelcomeStateUI(

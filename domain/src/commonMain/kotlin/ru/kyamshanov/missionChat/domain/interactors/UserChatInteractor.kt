@@ -2,9 +2,9 @@ package ru.kyamshanov.missionChat.domain.interactors
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDateTime
-import ru.kyamshanov.missionChat.domain.models.MessageInference
 import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Identifier
+import ru.kyamshanov.missionChat.domain.models.MessageInference
 import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.domain.utils.now
 
@@ -48,7 +48,7 @@ interface UserChatInteractor {
         topicId: Identifier,
         limit: Int = 50,
         before: LocalDateTime = LocalDateTime.now(),
-    ): List<Pair<Topic, MessageInference>>
+    ): LinkedHashMap<Topic, List<MessageInference>>
 
     /**
      * Creates a new chat.
@@ -56,7 +56,7 @@ interface UserChatInteractor {
      * @param description An optional description for the chat.
      * @return The created [Chat] object.
      */
-    suspend fun createChat(title: String, description: String? = null): Chat
+    suspend fun createChat(title: String, description: String? = null, firstTopicTitle: String): Chat
 
     /**
      * Creates a new topic within a chat.

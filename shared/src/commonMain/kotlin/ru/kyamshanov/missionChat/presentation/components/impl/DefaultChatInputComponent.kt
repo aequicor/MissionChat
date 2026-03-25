@@ -1,12 +1,13 @@
-package ru.kyamshanov.missionChat
+package ru.kyamshanov.missionChat.presentation.components.impl
 
 import com.arkivanov.decompose.ComponentContext
 import pro.respawn.flowmvi.api.Store
 import pro.respawn.flowmvi.essenty.dsl.subscribe
+import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
 import ru.kyamshanov.missionChat.presentation.container.ChatInputContainer
-import ru.kyamshanov.missionChat.presentation.models.ChatInputAction
-import ru.kyamshanov.missionChat.presentation.models.ChatInputIntent
-import ru.kyamshanov.missionChat.presentation.models.ChatInputState
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputAction
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputIntent
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputState
 import ru.kyamshanov.missionChat.utils.retainedPersistedStore
 
 internal class DefaultChatInputComponent(

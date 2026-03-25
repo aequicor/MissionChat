@@ -11,9 +11,9 @@ import missionchat.app.bycompose.desktop.generated.resources.Res
 import missionchat.app.bycompose.desktop.generated.resources.app_icon
 import org.jetbrains.compose.resources.painterResource
 import ru.kyamshanov.missionChat.App
-import ru.kyamshanov.missionChat.RootComponent
-import ru.kyamshanov.missionChat.RootComponentFactory
 import ru.kyamshanov.missionChat.initKoin
+import ru.kyamshanov.missionChat.presentation.components.RootComponent
+import ru.kyamshanov.missionChat.presentation.factories.RootComponentFactory
 import java.awt.Dimension
 
 
@@ -22,7 +22,6 @@ fun main() {
     val lifecycle = LifecycleRegistry()
     val root: RootComponent
     initKoin().also { koin ->
-        // Always create the root component outside Compose on the UI thread
         root = runOnUiThread {
             koin.get<RootComponentFactory>()
                 .create(DefaultComponentContext(lifecycle = lifecycle))
@@ -39,7 +38,7 @@ fun main() {
             onCloseRequest = ::exitApplication,
             state = windowState,
             title = "missionChat",
-            icon = painterResource(Res.drawable.app_icon) //for generate Res class use `gradle :app:byCompose:desktop:generateComposeResClass`
+            icon = painterResource(Res.drawable.app_icon)
         ) {
             window.minimumSize = Dimension(600, 800)
             App(root)

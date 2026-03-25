@@ -28,7 +28,8 @@ internal class RoomChatRepository(
     private val messageDao = database.messageDao()
 
     override suspend fun getChats(limit: Int, before: LocalDateTime): List<Chat> {
-        return chatDao.getChats(limit, before.toEpochMilliseconds()).map { it.toDomain() }
+        return chatDao.getChats(limit, before.toEpochMilliseconds())
+            .map { it.toDomain(topicDao.getTopicById(it.headTopic)!!.toDomain()) }
     }
 
     override suspend fun getTopics(chatId: Identifier, limit: Int, before: LocalDateTime): List<Topic> {
@@ -39,18 +40,20 @@ internal class RoomChatRepository(
         topicId: Identifier,
         limit: Int,
         before: LocalDateTime
-    ): List<Pair<Topic, MessageInference>> {
-        val result = mutableListOf<Pair<Topic, MessageInference>>()
+    ): LinkedHashMap<Topic, List<MessageInference>> {
+        val result = LinkedHashMap<Topic, List<MessageInference>>()
         var currentTopicId: Identifier? = topicId
         var currentBefore = before.toEpochMilliseconds()
+        var items = 0
 
-        while (currentTopicId != null && result.size < limit) {
+        while (currentTopicId != null && items < limit) {
             val topicEntity = topicDao.getTopicById(currentTopicId) ?: break
             val domainTopic = topicEntity.toDomain()
-            val needed = limit - result.size
+            val needed = limit - items
 
             val messages = messageDao.getMessages(currentTopicId.toString(), needed, currentBefore)
-            result.addAll(messages.map { domainTopic to it.toDomain() })
+            result[domainTopic] = messages.map { it.toDomain() }
+            items += messages.size
 
             val previousTopic = topicDao.getTopics(
                 chatId = topicEntity.chatId,
@@ -63,18 +66,33 @@ internal class RoomChatRepository(
         return result
     }
 
-    override suspend fun createChat(title: String, description: String?): Chat {
+    override suspend fun createChat(title: String, description: String?, firstTopicTitle: String): Chat {
         val now = LocalDateTime.nowEpochMilliseconds
+        val topicId = Identifier.random()
+        val chatId = Identifier.random()
+        val topic = TopicEntity(
+            id = topicId,
+            chatId = chatId,
+            title = title,
+            createdAt = now,
+            updatedAt = now
+        )
         val chat = ChatEntity(
-            id = Identifier.random(),
+            id = chatId,
             title = title,
             description = description,
             createdAt = now,
             updatedAt = now,
-            headTopic = null,
+            headTopic = topicId,
         )
+        database.useWriterConnection { transactor ->
+            transactor.immediateTransaction {
+                chatDao.insertChat(chat)
+                topicDao.insertTopic(topic)
+            }
+        }
         chatDao.insertChat(chat)
-        return chat.toDomain()
+        return chat.toDomain(topic.toDomain())
     }
 
     override suspend fun updateChat(chatId: Identifier, title: String?, description: String?): Chat {
@@ -85,7 +103,7 @@ internal class RoomChatRepository(
             updatedAt = LocalDateTime.nowEpochMilliseconds,
         )
         chatDao.updateChat(updated)
-        return updated.toDomain()
+        return updated.toDomain(topicDao.getTopicById(updated.headTopic)?.toDomain()!!)
     }
 
     override suspend fun deleteChat(chatId: Identifier) {
@@ -165,12 +183,12 @@ internal class RoomChatRepository(
         messageDao.deleteMessage(messageId)
     }
 
-    private suspend fun ChatEntity.toDomain() = Chat(
+    private fun ChatEntity.toDomain(topic: Topic) = Chat(
         id = id,
         title = title,
         createdAt = createdAt.toLocalDateTime(),
         updatedAt = updatedAt.toLocalDateTime(),
-        headTopic = headTopic?.let { topicDao.getTopicById(it) }?.toDomain()
+        headTopic = topic.also { require(headTopic == it.id) { "" } }
     )
 
     private fun TopicEntity.toDomain() = Topic(

@@ -1,4 +1,4 @@
-package ru.kyamshanov.missionChat
+package ru.kyamshanov.missionChat.presentation.components.impl
 
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.ChildStack
@@ -9,8 +9,9 @@ import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.parameter.parametersOf
-import ru.kyamshanov.missionChat.RootComponent.Child.DetailsChild
-import ru.kyamshanov.missionChat.RootComponent.Child.WelcomeScreen
+import ru.kyamshanov.missionChat.presentation.components.RootComponent
+import ru.kyamshanov.missionChat.presentation.components.RootComponent.Child.DetailsChild
+import ru.kyamshanov.missionChat.presentation.components.RootComponent.Child.WelcomeScreen
 import ru.kyamshanov.missionChat.utils.ComponentFactory
 import ru.kyamshanov.missionChat.utils.WelcomeScreenParams
 

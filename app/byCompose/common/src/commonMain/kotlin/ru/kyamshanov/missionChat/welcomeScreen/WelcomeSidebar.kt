@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,58 +24,38 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-
-// Mock Data Models
-private data class TopicUiModel(
-    val id: String,
-    val title: String
-)
-
-private data class ChatUiModel(
-    val id: String,
-    val title: String,
-    val icon: ImageVector,
-    val topics: List<TopicUiModel> = emptyList()
-)
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
 
 @Composable
-fun WelcomeSlidebar(
+fun WelcomeSidebar(
+    sidebarComponent: SidebarComponent,
     modifier: Modifier = Modifier
 ) {
     // State for interactivity
     var isActiveExpanded by remember { mutableStateOf(true) }
     var isArchiveExpanded by remember { mutableStateOf(false) }
-    var selectedChatId by remember { mutableStateOf("1") }
+
+    val sidebarState by sidebarComponent.state.collectAsStateWithLifecycle()
+    val selectedChatId = sidebarState.selectedChat?.id?.toString()
 
     // Mock Data
     val activeChats = remember {
-        mutableStateListOf(
+        sidebarState.chatsWithTopics.map { (chat, topics) ->
             ChatUiModel(
-                "1", "Current Team Chat", Icons.AutoMirrored.Filled.Chat,
-                topics = listOf(
-                    TopicUiModel("t1", "Release planning v2.0"),
-                    TopicUiModel("t2", "Bug #402 discussion"),
-                    TopicUiModel("t3", "Design system updates"),
-                    TopicUiModel("t4", "Old topic")
-                )
-            ),
-            ChatUiModel(
-                "2", "Project Alpha", Icons.Default.Work,
-                topics = listOf(
-                    TopicUiModel("t5", "Backend API specs"),
-                    TopicUiModel("t6", "Frontend integration")
-                )
-            ),
-            ChatUiModel(
-                "3", "Design Review", Icons.AutoMirrored.Filled.Chat
+                id = chat.id.toString(),
+                title = chat.title,
+                icon = Icons.AutoMirrored.Filled.Chat,
+                topics = topics.map { topic ->
+                    TopicUiModel(id = topic.id.toString(), title = topic.title)
+                }
             )
-        )
+        }
     }
 
     val archivedChats = remember {
@@ -109,10 +88,11 @@ fun WelcomeSlidebar(
                     SidebarItem(
                         chat = chat,
                         isSelected = chat.id == selectedChatId,
-                        onClick = { selectedChatId = chat.id },
+                        onClick = { sidebarComponent.onSelect() },
                         onOpenAllTopics = { /* Handle opening all topics view */ },
                         onArchive = {
-                            activeChats.remove(chat)
+                            TODO()
+                            //  activeChats.remove(chat)
                             archivedChats.add(chat)
                         }
                     )
@@ -142,8 +122,9 @@ fun WelcomeSlidebar(
                         onClick = { selectedChatId = chat.id },
                         onDelete = { archivedChats.remove(chat) },
                         onUnarchive = {
+                            TODO()
                             archivedChats.remove(chat)
-                            activeChats.add(chat)
+                            // activeChats.add(chat)
                         }
                     )
                 }

@@ -3,6 +3,7 @@ package ru.kyamshanov.missionChat
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import ru.kyamshanov.missionChat.presentation.components.RootComponent
 
 @Composable
 fun App(rootComponent: RootComponent, modifier: Modifier = Modifier.fillMaxSize()) {

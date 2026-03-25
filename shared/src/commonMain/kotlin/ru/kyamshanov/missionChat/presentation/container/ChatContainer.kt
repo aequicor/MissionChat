@@ -12,26 +12,27 @@ import pro.respawn.flowmvi.plugins.init
 import pro.respawn.flowmvi.plugins.recover
 import pro.respawn.flowmvi.plugins.reduce
 import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractor
-import ru.kyamshanov.missionChat.domain.models.Chat
-import ru.kyamshanov.missionChat.domain.models.Identifier
-import ru.kyamshanov.missionChat.domain.models.Interlocutor
-import ru.kyamshanov.missionChat.domain.models.MessageInference
+import ru.kyamshanov.missionChat.domain.models.*
+import ru.kyamshanov.missionChat.domain.utils.mix
 import ru.kyamshanov.missionChat.domain.utils.now
-import ru.kyamshanov.missionChat.presentation.models.MessagesAction
-import ru.kyamshanov.missionChat.presentation.models.MessagesIntent
-import ru.kyamshanov.missionChat.presentation.models.MessagesState
-import ru.kyamshanov.missionChat.presentation.models.toPresentation
+import ru.kyamshanov.missionChat.presentation.contracts.MessagesAction
+import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
+import ru.kyamshanov.missionChat.presentation.contracts.MessagesState
+import ru.kyamshanov.missionChat.utils.add
+import ru.kyamshanov.missionChat.utils.set
+import ru.kyamshanov.missionChat.utils.toTopics
 
 private typealias Ctx = PipelineContext<MessagesState, MessagesIntent, MessagesAction>
 
 internal class ChatContainer(
-    chat: Chat,
+    chat: Chat?,
     private val userChatInteractor: UserChatInteractor
 ) : Container<MessagesState, MessagesIntent, MessagesAction> {
 
-    private var currentTopicId: Identifier? = chat.headTopic?.id
+    private var currentChatId = chat?.id
+    private var currentTopicId: Identifier? = chat?.headTopic?.id
     private var generationJob: Job? = null
-    private var messages: List<MessageInference> = emptyList()
+    private var messages: Map<Topic, List<MessageInference>> = LinkedHashMap()
     private val humanInterlocutor = Interlocutor.Human(name = "User")
 
     override val store = store(initial = MessagesState.Idle) {
@@ -41,7 +42,11 @@ internal class ChatContainer(
         }
 
         init {
-            loadMessages()
+            if (currentChatId == null) {
+                updateState { MessagesState.Loaded(emptyList()) }
+            } else {
+                loadMessages()
+            }
         }
 
         recover {
@@ -51,7 +56,7 @@ internal class ChatContainer(
 
         reduce { intent ->
             when (intent) {
-                is MessagesIntent.DeleteMessage -> deleteMessage(intent.id)
+                is MessagesIntent.DeleteMessage -> deleteMessage(intent.topicId, intent.messageId)
                 MessagesIntent.LoadNextMessages -> loadMessages()
                 is MessagesIntent.SendNewMessage -> sendMessage(intent.message)
                 MessagesIntent.StopGeneration -> stopGeneration()
@@ -70,28 +75,25 @@ internal class ChatContainer(
             val newMessages = userChatInteractor.getMessages(
                 topicId = topicId,
                 limit = 50,
-                before = messages.firstOrNull()?.createdAt ?: LocalDateTime.now()
+                before = messages.entries.lastOrNull()?.value?.lastOrNull()?.createdAt ?: LocalDateTime.now()
             )
-            messages = newMessages + messages
-            updateState {
-                MessagesState.Loaded(
-                    messages = this@ChatContainer.messages.map { it.toPresentation() },
-                    isGenerating = false
-                )
-            }
+            messages = messages.mix(newMessages)
+            syncState()
         } catch (e: Exception) {
             updateState { MessagesState.Error(e) }
         }
     }
 
-    private suspend fun Ctx.deleteMessage(id: Identifier) {
+    private suspend fun Ctx.deleteMessage(topicId: Identifier, messageId: Identifier) {
         try {
-            userChatInteractor.deleteMessage(id)
-            messages = messages.filter { it.id != id }
+            userChatInteractor.deleteMessage(messageId)
+            val topic = messages.keys.first { it.id == topicId }
+            messages[topic]?.toMutableList()?.filter { it.id != messageId }?.also {
+                messages = messages.toMutableMap().apply { set(topic, it) }
+            }
             withState {
                 if (this is MessagesState.Loaded) {
-                    val messagesPres = this@ChatContainer.messages.map { it.toPresentation() }
-                    updateState { this@withState.copy(messages = messagesPres) }
+                    syncState()
                 }
             }
         } catch (e: Exception) {
@@ -100,25 +102,24 @@ internal class ChatContainer(
     }
 
     private suspend fun Ctx.sendMessage(text: String) {
-        //TODO handle when generation job is not null
-
+        if (generationJob != null) return
+        if (currentChatId == null) {
+            createNewChat()
+        }
+        val topic = currentTopicId.let { id -> messages.keys.firstOrNull { it.id == id } } ?: createTopic()
+        val messagesContext = messages[topic].orEmpty()
         val humanMessage = MessageInference.HumanMessage(
             id = Identifier.random(),
             text = text,
             createdAt = LocalDateTime.now(),
             human = humanInterlocutor,
         )
-        messages = messages + humanMessage
-        updateState {
-            MessagesState.Loaded(
-                messages = this@ChatContainer.messages.map { it.toPresentation() },
-                isGenerating = true
-            )
-        }
+        messages = messages.add(topic, humanMessage)
+        syncState(isGenerating = true)
 
         generationJob = launch {
             userChatInteractor.sendMessage(
-                context = messages,
+                context = messagesContext,
                 message = humanMessage
             ).catch { e ->
                 updateState { MessagesState.Error(Exception(e)) }
@@ -130,17 +131,16 @@ internal class ChatContainer(
                 }
                 generationJob = null
             }.collect { incomingMessage ->
-                val existingIndex = messages.indexOfFirst { it.id == incomingMessage.id }
-                if (existingIndex != -1) {
-                    messages = messages.toMutableList().apply { set(existingIndex, incomingMessage) }
+                val existingIndex = messages[topic].orEmpty().indexOfFirst { it.id == incomingMessage.id }
+                messages = if (existingIndex != -1) {
+                    messages.set(topic, existingIndex, incomingMessage)
                 } else {
-                    messages += incomingMessage
+                    messages.add(topic, incomingMessage)
                 }
 
                 withState {
                     if (this is MessagesState.Loaded) {
-                        val messagesPres = this@ChatContainer.messages.map { it.toPresentation() }
-                        updateState { this@withState.copy(messages = messagesPres) }
+                        syncState(isGenerating = true)
                     }
                 }
             }
@@ -154,6 +154,33 @@ internal class ChatContainer(
             if (this is MessagesState.Loaded) {
                 updateState { this@withState.copy(isGenerating = false) }
             }
+        }
+    }
+
+    private suspend fun Ctx.createNewChat() {
+        try {
+            val chat = userChatInteractor.createChat(title = "New Chat", null, "New topic")
+            currentChatId = chat.id
+            currentTopicId = chat.headTopic.id
+            action(MessagesAction.ChatCreated(chat))
+        } catch (e: Exception) {
+            updateState { MessagesState.Error(e) }
+        }
+    }
+
+    private suspend fun Ctx.createTopic(): Topic {
+        val chatId = currentChatId ?: throw IllegalStateException("Cannot create topic without a chat")
+        val topic = userChatInteractor.createTopic(chatId, "New topic is creating")
+        messages = LinkedHashMap(messages).apply { set(topic, emptyList()) }
+        syncState(isGenerating = false)
+        action(MessagesAction.TopicCreated(topic))
+        return topic
+    }
+
+    private suspend fun Ctx.syncState(isGenerating: Boolean = false) {
+        updateState {
+            val messagesPres = this@ChatContainer.messages.toTopics()
+            MessagesState.Loaded(topics = messagesPres, isGenerating = isGenerating)
         }
     }
 }

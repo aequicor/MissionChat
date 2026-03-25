@@ -1,4 +1,4 @@
-package ru.kyamshanov.missionChat.presentation.models
+package ru.kyamshanov.missionChat.presentation.contracts
 
 import kotlinx.serialization.Serializable
 import pro.respawn.flowmvi.api.MVIAction

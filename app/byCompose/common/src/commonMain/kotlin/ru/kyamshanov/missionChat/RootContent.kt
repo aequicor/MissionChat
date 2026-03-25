@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.fade
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
+import ru.kyamshanov.missionChat.presentation.components.RootComponent
 import ru.kyamshanov.missionChat.welcomeScreen.WelcomeScreen
 
 @Composable

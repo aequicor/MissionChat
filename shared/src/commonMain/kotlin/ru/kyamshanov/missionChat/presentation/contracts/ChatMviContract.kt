@@ -1,9 +1,12 @@
-package ru.kyamshanov.missionChat.presentation.models
+package ru.kyamshanov.missionChat.presentation.contracts
 
 import pro.respawn.flowmvi.api.MVIAction
 import pro.respawn.flowmvi.api.MVIIntent
 import pro.respawn.flowmvi.api.MVIState
+import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Identifier
+import ru.kyamshanov.missionChat.domain.models.Topic
+import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
 
 /**
  * Represents the UI state for the Messages screen.
@@ -21,15 +24,13 @@ sealed interface MessagesState : MVIState {
      */
     data class Error(val e: Exception?) : MessagesState
 
-    data object NoMessages : MessagesState
-
     /**
      * State representing successfully loaded messages.
      * @property messages The list of messages to display.
      * @property isGenerating Indicates if an AI response is currently being generated.
      */
     data class Loaded(
-        val messages: ChatPresentationModel,
+        val topics: List<ChatTopicModel>,
         val isGenerating: Boolean = false,
     ) : MessagesState
 }
@@ -45,11 +46,13 @@ sealed interface MessagesIntent : MVIIntent {
      */
     data class SendNewMessage(val message: String) : MessagesIntent
 
+
     /**
-     * Intent to delete a specific message.
-     * @property id The unique identifier of the message to be deleted.
+     * Intent to delete a message.
+     * @property topicId The identifier of the topic.
+     * @property messageId The identifier of the message to delete.
      */
-    data class DeleteMessage(val id: Identifier) : MessagesIntent
+    data class DeleteMessage(val topicId: Identifier, val messageId: Identifier) : MessagesIntent
 
     /**
      * Intent to stop the current AI generation process.
@@ -66,4 +69,14 @@ sealed interface MessagesIntent : MVIIntent {
 /**
  * Represents one-time side effects (actions) for the Messages screen.
  */
-sealed interface MessagesAction : MVIAction
+sealed interface MessagesAction : MVIAction {
+
+    data class ChatCreated(
+        val chat: Chat
+    ) : MessagesAction
+
+    data class TopicCreated(
+        val topic: Topic
+    ) : MessagesAction
+
+}

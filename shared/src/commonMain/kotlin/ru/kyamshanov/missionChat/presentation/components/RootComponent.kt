@@ -1,4 +1,4 @@
-package ru.kyamshanov.missionChat
+package ru.kyamshanov.missionChat.presentation.components
 
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.value.Value
