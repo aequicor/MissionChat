@@ -5,7 +5,8 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
 import androidx.room.TypeConverters
-import ru.kyamshanov.missionChat.data.database.converters.UuidConverter
+import ru.kyamshanov.missionChat.data.database.converters.IdentifierConverter
+import ru.kyamshanov.missionChat.data.database.converters.LocalDateTimeConverter
 import ru.kyamshanov.missionChat.data.database.dao.ChatDao
 import ru.kyamshanov.missionChat.data.database.dao.MessageDao
 import ru.kyamshanov.missionChat.data.database.dao.TopicDao
@@ -14,7 +15,7 @@ import ru.kyamshanov.missionChat.data.database.entities.MessageEntity
 import ru.kyamshanov.missionChat.data.database.entities.TopicEntity
 
 @Database(entities = [MessageEntity::class, ChatEntity::class, TopicEntity::class], version = 1)
-@TypeConverters(UuidConverter::class)
+@TypeConverters(IdentifierConverter::class, LocalDateTimeConverter::class)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao

@@ -1,17 +1,12 @@
 package ru.kyamshanov.missionChat.welcomeScreen
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,12 +28,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.m3.Markdown
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import ru.kyamshanov.missionChat.components.glassmorphism
 import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
 import ru.kyamshanov.missionChat.presentation.models.MessagePresentationType
@@ -47,29 +42,29 @@ import ru.kyamshanov.missionChat.presentation.models.UiID
 
 @Composable
 fun MessagesList(
-    messages: List<ChatTopicModel>,
+    topics: List<ChatTopicModel>,
     onDelete: (topicId: UiID, messageId: UiID) -> Unit
 ) {
     val listState = rememberLazyListState()
-    LaunchedEffect(messages.size) {
-        if (listState.firstVisibleItemIndex <= 1) {
-            listState.animateScrollToItem(0)
-        }
-    }
 
-    val currentTopTopic by remember {
-        derivedStateOf {
-            // Получаем информацию о видимых элементах
-            val visibleItems = listState.layoutInfo.visibleItemsInfo
-            if (visibleItems.isNotEmpty()) {
-                // В reverseLayout элементы вверху экрана имеют БОЛЬШИЙ индекс.
-                // Поэтому берем .last() из видимых
-                val topItemIndex = visibleItems.last().index
+    val totalItemsCount = remember(topics) { topics.sumOf { it.messages.size + 1 } }
+    var isInitialScrollDone by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-                // Получаем сообщение по этому индексу и достаем его тему
-                messages.getOrNull(topItemIndex)?.topicTitle
+    LaunchedEffect(topics) {
+        if (totalItemsCount > 0) {
+            if (!isInitialScrollDone) {
+                listState.scrollToItem(totalItemsCount - 1)
+                isInitialScrollDone = true
             } else {
-                null
+                val layoutInfo = listState.layoutInfo
+                val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()
+                val isAtBottom = lastVisibleItem != null &&
+                        lastVisibleItem.index >= layoutInfo.totalItemsCount - 3
+
+                if (isAtBottom) {
+                    listState.animateScrollToItem(totalItemsCount - 1)
+                }
             }
         }
     }
@@ -81,18 +76,19 @@ fun MessagesList(
             state = listState,
             contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
-            reverseLayout = true,
         ) {
-            messages.forEach { (topic, messages) ->
-                /*stickyHeader(key = topic.id) {
-                    Text(topic.title)
-                }*/
+            topics.forEachIndexed { topicIndex, (topic, messages) ->
+                stickyHeader(key = topic.id) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        FloatingHeader(topic.title, Modifier.align(Alignment.Center))
+                    }
+                }
 
-                items(messages.asReversed(), key = { it.id }) {
+                itemsIndexed(messages, key = { index, item -> item.id }) { index, item ->
                     val icon: ImageVector
                     val iconDescription: String
                     val backgroundColor: Color
-                    when (it.type) {
+                    when (item.type) {
                         MessagePresentationType.Human -> {
                             icon = Icons.Default.Person
                             iconDescription = "Human"
@@ -109,44 +105,37 @@ fun MessagesList(
                     }
 
                     ChatCard(
-                        /* modifier = Modifier.animateItem(
-                             fadeInSpec = tween(300),
-                             fadeOutSpec = tween(10),
-                             placementSpec = spring(stiffness = Spring.StiffnessLow),
-                         ),*/
                         icon = icon,
+                        modifier = Modifier.let { modifier ->
+                            if (topicIndex == topics.lastIndex && index == messages.lastIndex) {
+                                modifier.onSizeChanged {
+                                    coroutineScope.launch {
+                                        listState.scrollToItem(totalItemsCount - 1)
+                                    }
+                                }
+                            } else {
+                                modifier
+                            }
+                        },
                         iconContentDescription = iconDescription,
                         title = "Xyi",
-                        lastMessage = it.content,
+                        lastMessage = item.content,
                         textColor = MaterialTheme.colorScheme.onSurface,
                         backgroundColor = backgroundColor,
-                        onDelete = { onDelete(topic.id, it.id) }
+                        onDelete = { onDelete(topic.id, item.id) }
                     )
                 }
             }
 
-        }
-
-        AnimatedVisibility(
-            visible = currentTopTopic != null,
-            enter = fadeIn() + slideInVertically { -it }, // Выезжает сверху
-            exit = fadeOut() + slideOutVertically { -it },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 8.dp)
-        ) {
-            currentTopTopic?.let { topic ->
-                FloatingHeader(title = topic)
-            }
         }
     }
 
 }
 
 @Composable
-fun FloatingHeader(title: String) {
+fun FloatingHeader(title: String, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
             .padding(horizontal = 16.dp, vertical = 6.dp)

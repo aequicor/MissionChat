@@ -22,7 +22,6 @@ fun MessageInference.toPresentation(): MessagePresentationModel {
         id = id.toUiID(),
         content = text,
         type = type,
-
     )
 }
 

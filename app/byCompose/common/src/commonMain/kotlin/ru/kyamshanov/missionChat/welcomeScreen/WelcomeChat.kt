@@ -22,12 +22,10 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.value.Value
 import pro.respawn.flowmvi.compose.dsl.subscribe
-import ru.kyamshanov.missionChat.DetailsContent
 import ru.kyamshanov.missionChat.components.WindowScaffold
 import ru.kyamshanov.missionChat.components.glassmorphism
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
 import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
-import ru.kyamshanov.missionChat.presentation.components.RootComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent.MessagesChat
 import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
@@ -196,7 +194,7 @@ fun MessagesSection(
     when (val model = state) {
         is MessagesState.Loaded -> {
             MessagesList(
-                messages = model.topics,
+                topics = model.topics,
                 onDelete = { t, m -> component.intent(MessagesIntent.DeleteMessage(t, m)) })
         }
 

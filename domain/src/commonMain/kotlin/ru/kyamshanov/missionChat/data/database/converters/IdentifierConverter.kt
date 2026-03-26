@@ -5,7 +5,7 @@ import ru.kyamshanov.missionChat.domain.models.Identifier
 import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
-object UuidConverter {
+object IdentifierConverter {
     @TypeConverter
     fun fromString(value: String?): Identifier? {
         return value?.let { Identifier(it) }

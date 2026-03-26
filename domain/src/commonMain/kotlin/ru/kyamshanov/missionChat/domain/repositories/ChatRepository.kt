@@ -52,7 +52,7 @@ internal interface ChatRepository {
         topicId: Identifier,
         limit: Int,
         before: LocalDateTime = LocalDateTime.now()
-    ): LinkedHashMap<Topic, List<MessageInference>>
+    ): Map<Topic, List<MessageInference>>
 
     /**
      * Creates a new chat.

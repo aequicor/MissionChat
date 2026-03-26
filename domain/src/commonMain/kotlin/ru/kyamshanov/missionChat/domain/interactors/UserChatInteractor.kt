@@ -42,18 +42,24 @@ interface UserChatInteractor {
         before: LocalDateTime = LocalDateTime.now(),
     ): List<Topic>
 
+
     /**
-     * Retrieves a list of messages within a specific topic.
-     * @param topicId The unique identifier of the topic.
-     * @param limit The maximum number of messages to retrieve.
-     * @param before The timestamp to fetch messages created before.
-     * @return A list of [MessageInference] objects.
+     * Получает сообщения для указанной темы с поддержкой пагинации по темам.
+     *
+     * **Порядок сортировки:**
+     * - **Темы** в результирующей карте отсортированы в хронологическом порядке: **от старых к новым**.
+     * - **Сообщения** внутри каждой темы также отсортированы в хронологическом порядке: **от старых к новым** (самые свежие сообщения в конце списка).
+     *
+     * @param topicId Идентификатор темы, с которой начинается поиск (двигаясь назад во времени).
+     * @param limit Максимальное количество сообщений для получения.
+     * @param before Временная метка, до которой нужно искать сообщения в первой теме.
+     * @return Карта [Topic] -> [List<MessageInference>], где и ключи, и значения упорядочены хронологически.
      */
     suspend fun getMessages(
         topicId: Identifier,
         limit: Int = 50,
         before: LocalDateTime = LocalDateTime.now(),
-    ): LinkedHashMap<Topic, List<MessageInference>>
+    ): Map<Topic, List<MessageInference>>
 
     /**
      * Creates a new chat.

@@ -140,6 +140,7 @@ internal class DefaultWelcomeScreenComponent(
                     }
                 }
             } catch (e: Exception) {
+                e.printStackTrace()
                 TODO()
             }
         }

@@ -35,7 +35,7 @@ internal class UserChatInteractorImpl(
         topicId: Identifier,
         limit: Int,
         before: LocalDateTime
-    ): LinkedHashMap<Topic, List<MessageInference>> = repository.getMessages(topicId, limit, before)
+    ): Map<Topic, List<MessageInference>> = repository.getMessages(topicId, limit, before)
 
     override suspend fun createChat(title: String, description: String?, firstTopicTitle: String): Chat =
         repository.createChat(title, description, firstTopicTitle)
