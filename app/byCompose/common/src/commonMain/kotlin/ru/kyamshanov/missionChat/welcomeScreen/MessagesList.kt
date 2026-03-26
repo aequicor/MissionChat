@@ -3,9 +3,11 @@ package ru.kyamshanov.missionChat.welcomeScreen
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,9 +38,9 @@ import com.mikepenz.markdown.m3.Markdown
 import kotlinx.coroutines.launch
 import ru.kyamshanov.missionChat.components.glassmorphism
 import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
+import ru.kyamshanov.missionChat.presentation.models.MessagePresentationModel
 import ru.kyamshanov.missionChat.presentation.models.MessagePresentationType
 import ru.kyamshanov.missionChat.presentation.models.UiID
-
 
 @Composable
 fun MessagesList(
@@ -46,10 +48,27 @@ fun MessagesList(
     onDelete: (topicId: UiID, messageId: UiID) -> Unit
 ) {
     val listState = rememberLazyListState()
-
     val totalItemsCount = remember(topics) { topics.sumOf { it.messages.size + 1 } }
+
+    AutoScrollEffect(listState, topics, totalItemsCount)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        MessagesListContent(
+            topics = topics,
+            listState = listState,
+            totalItemsCount = totalItemsCount,
+            onDelete = onDelete
+        )
+    }
+}
+
+@Composable
+private fun AutoScrollEffect(
+    listState: LazyListState,
+    topics: List<ChatTopicModel>,
+    totalItemsCount: Int
+) {
     var isInitialScrollDone by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(topics) {
         if (totalItemsCount > 0) {
@@ -68,69 +87,103 @@ fun MessagesList(
             }
         }
     }
+}
 
-    Box(modifier = Modifier.fillMaxSize()) {
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MessagesListContent(
+    topics: List<ChatTopicModel>,
+    listState: LazyListState,
+    totalItemsCount: Int,
+    onDelete: (topicId: UiID, messageId: UiID) -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = listState,
-            contentPadding = PaddingValues(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
-        ) {
-            topics.forEachIndexed { topicIndex, (topic, messages) ->
-                stickyHeader(key = topic.id) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        FloatingHeader(topic.title, Modifier.align(Alignment.Center))
-                    }
-                }
-
-                itemsIndexed(messages, key = { index, item -> item.id }) { index, item ->
-                    val icon: ImageVector
-                    val iconDescription: String
-                    val backgroundColor: Color
-                    when (item.type) {
-                        MessagePresentationType.Human -> {
-                            icon = Icons.Default.Person
-                            iconDescription = "Human"
-                            backgroundColor = MaterialTheme.colorScheme.surface
-                        }
-
-                        MessagePresentationType.Assistant -> {
-                            icon = Icons.AutoMirrored.Filled.Chat
-                            iconDescription = "AI Assistant"
-                            backgroundColor = MaterialTheme.colorScheme.surfaceVariant
-                        }
-
-                        MessagePresentationType.System -> TODO()
-                    }
-
-                    ChatCard(
-                        icon = icon,
-                        modifier = Modifier.let { modifier ->
-                            if (topicIndex == topics.lastIndex && index == messages.lastIndex) {
-                                modifier.onSizeChanged {
-                                    coroutineScope.launch {
-                                        listState.scrollToItem(totalItemsCount - 1)
-                                    }
-                                }
-                            } else {
-                                modifier
-                            }
-                        },
-                        iconContentDescription = iconDescription,
-                        title = "Xyi",
-                        lastMessage = item.content,
-                        textColor = MaterialTheme.colorScheme.onSurface,
-                        backgroundColor = backgroundColor,
-                        onDelete = { onDelete(topic.id, item.id) }
-                    )
-                }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = PaddingValues(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
+    ) {
+        topics.forEachIndexed { topicIndex, topicModel ->
+            stickyHeader(key = topicModel.topic.id) {
+                TopicHeader(topicModel.topic.title)
             }
 
+            itemsIndexed(
+                items = topicModel.messages,
+                key = { _, item -> item.id }
+            ) { index, message ->
+                val isLastMessage = topicIndex == topics.lastIndex && index == topicModel.messages.lastIndex
+
+                MessageItem(
+                    message = message,
+                    modifier = if (isLastMessage) {
+                        Modifier.onSizeChanged {
+                            coroutineScope.launch {
+                                listState.scrollToItem(totalItemsCount - 1)
+                            }
+                        }
+                    } else Modifier,
+                    onDelete = { onDelete(topicModel.topic.id, message.id) }
+                )
+            }
         }
     }
-
 }
+
+@Composable
+private fun TopicHeader(title: String) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        FloatingHeader(title, Modifier.align(Alignment.Center))
+    }
+}
+
+@Composable
+private fun MessageItem(
+    message: MessagePresentationModel,
+    modifier: Modifier = Modifier,
+    onDelete: () -> Unit
+) {
+    val style = getMessageStyle(message.type)
+
+    ChatCard(
+        icon = style.icon,
+        iconContentDescription = style.description,
+        title = style.title,
+        lastMessage = message.content,
+        textColor = MaterialTheme.colorScheme.onSurface,
+        backgroundColor = style.backgroundColor,
+        modifier = modifier,
+        onDelete = onDelete
+    )
+}
+
+@Composable
+private fun getMessageStyle(type: MessagePresentationType): MessageStyle = when (type) {
+    MessagePresentationType.Human -> MessageStyle(
+        icon = Icons.Default.Person,
+        description = "Human",
+        backgroundColor = MaterialTheme.colorScheme.surface,
+        title = "You"
+    )
+
+    MessagePresentationType.Assistant -> MessageStyle(
+        icon = Icons.AutoMirrored.Filled.Chat,
+        description = "AI Assistant",
+        backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+        title = "AI Assistant"
+    )
+
+    MessagePresentationType.System -> TODO("System message type not implemented")
+}
+
+private data class MessageStyle(
+    val icon: ImageVector,
+    val description: String,
+    val backgroundColor: Color,
+    val title: String
+)
 
 @Composable
 fun FloatingHeader(title: String, modifier: Modifier = Modifier) {
@@ -173,52 +226,97 @@ fun ChatCard(
                 backgroundColor = backgroundColor
             )
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Bottom) {
-            Box(
-                Modifier.size(42.dp).clip(CircleShape).background(textColor.copy(alpha = 0.1f)),
-                Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = iconContentDescription,
-                    tint = textColor,
-                    modifier = Modifier.size(20.dp)
+        MessageCardContent(
+            icon = icon,
+            iconContentDescription = iconContentDescription,
+            title = title,
+            message = lastMessage,
+            textColor = textColor
+        )
+
+        DeleteAction(
+            isVisible = isHovered,
+            textColor = textColor,
+            onDelete = onDelete,
+            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+        )
+    }
+}
+
+@Composable
+private fun MessageCardContent(
+    icon: ImageVector,
+    iconContentDescription: String,
+    title: String?,
+    message: String,
+    textColor: Color
+) {
+    Row(
+        modifier = Modifier.padding(16.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        MessageIcon(icon, iconContentDescription, textColor)
+
+        Spacer(Modifier.width(16.dp))
+
+        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
+            if (!title.isNullOrBlank()) {
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.sp,
+                    color = textColor
                 )
             }
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.align(Alignment.CenterVertically)) {
-                if (!title.isNullOrBlank()) {
-                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-
-                        Text(
-                            text = title,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 15.sp,
-                            color = textColor
-                        )
-                    }
-//                    Text(date, color = textColor.copy(alpha = 0.6f), fontSize = 11.sp)
-                }
-                SelectionContainer {
-                    Markdown(lastMessage)
-                }
+            SelectionContainer {
+                Markdown(message)
             }
         }
+    }
+}
 
-        AnimatedVisibility(
-            visible = isHovered,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
-        ) {
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = textColor.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+@Composable
+private fun MessageIcon(
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color
+) {
+    Box(
+        Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(tint.copy(alpha = 0.1f)),
+        Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun DeleteAction(
+    isVisible: Boolean,
+    textColor: Color,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = modifier
+    ) {
+        IconButton(onClick = onDelete) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Delete",
+                tint = textColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
