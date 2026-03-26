@@ -6,6 +6,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.m3.Markdown
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import ru.kyamshanov.missionChat.components.glassmorphism
 import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
 import ru.kyamshanov.missionChat.presentation.models.MessagePresentationType
@@ -53,55 +57,106 @@ fun MessagesList(
         }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        state = listState,
-        contentPadding = PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
-        //reverseLayout = true,
-    ) {
-        messages.forEach { (topic, messages) ->
-            stickyHeader(key = topic.id) {
-                Text(topic.title)
-            }
+    val currentTopTopic by remember {
+        derivedStateOf {
+            // Получаем информацию о видимых элементах
+            val visibleItems = listState.layoutInfo.visibleItemsInfo
+            if (visibleItems.isNotEmpty()) {
+                // В reverseLayout элементы вверху экрана имеют БОЛЬШИЙ индекс.
+                // Поэтому берем .last() из видимых
+                val topItemIndex = visibleItems.last().index
 
-            items(messages, key = { it.id }) {
-                val icon: ImageVector
-                val iconDescription: String
-                val backgroundColor: Color
-                when (it.type) {
-                    MessagePresentationType.Human -> {
-                        icon = Icons.Default.Person
-                        iconDescription = "Human"
-                        backgroundColor = MaterialTheme.colorScheme.surface
-                    }
-
-                    MessagePresentationType.Assistant -> {
-                        icon = Icons.AutoMirrored.Filled.Chat
-                        iconDescription = "AI Assistant"
-                        backgroundColor = MaterialTheme.colorScheme.surfaceVariant
-                    }
-
-                    MessagePresentationType.System -> TODO()
-                }
-
-                ChatCard(
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = tween(300),
-                        fadeOutSpec = tween(10),
-                        placementSpec = spring(stiffness = Spring.StiffnessLow),
-                    ),
-                    icon = icon,
-                    iconContentDescription = iconDescription,
-                    title = "Xyi",
-                    lastMessage = it.content,
-                    textColor = MaterialTheme.colorScheme.onSurface,
-                    backgroundColor = backgroundColor,
-                    onDelete = { onDelete(topic.id, it.id) }
-                )
+                // Получаем сообщение по этому индексу и достаем его тему
+                messages.getOrNull(topItemIndex)?.topicTitle
+            } else {
+                null
             }
         }
+    }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            contentPadding = PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
+            reverseLayout = true,
+        ) {
+            messages.forEach { (topic, messages) ->
+                /*stickyHeader(key = topic.id) {
+                    Text(topic.title)
+                }*/
+
+                items(messages.asReversed(), key = { it.id }) {
+                    val icon: ImageVector
+                    val iconDescription: String
+                    val backgroundColor: Color
+                    when (it.type) {
+                        MessagePresentationType.Human -> {
+                            icon = Icons.Default.Person
+                            iconDescription = "Human"
+                            backgroundColor = MaterialTheme.colorScheme.surface
+                        }
+
+                        MessagePresentationType.Assistant -> {
+                            icon = Icons.AutoMirrored.Filled.Chat
+                            iconDescription = "AI Assistant"
+                            backgroundColor = MaterialTheme.colorScheme.surfaceVariant
+                        }
+
+                        MessagePresentationType.System -> TODO()
+                    }
+
+                    ChatCard(
+                        /* modifier = Modifier.animateItem(
+                             fadeInSpec = tween(300),
+                             fadeOutSpec = tween(10),
+                             placementSpec = spring(stiffness = Spring.StiffnessLow),
+                         ),*/
+                        icon = icon,
+                        iconContentDescription = iconDescription,
+                        title = "Xyi",
+                        lastMessage = it.content,
+                        textColor = MaterialTheme.colorScheme.onSurface,
+                        backgroundColor = backgroundColor,
+                        onDelete = { onDelete(topic.id, it.id) }
+                    )
+                }
+            }
+
+        }
+
+        AnimatedVisibility(
+            visible = currentTopTopic != null,
+            enter = fadeIn() + slideInVertically { -it }, // Выезжает сверху
+            exit = fadeOut() + slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 8.dp)
+        ) {
+            currentTopTopic?.let { topic ->
+                FloatingHeader(title = topic)
+            }
+        }
+    }
+
+}
+
+@Composable
+fun FloatingHeader(title: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

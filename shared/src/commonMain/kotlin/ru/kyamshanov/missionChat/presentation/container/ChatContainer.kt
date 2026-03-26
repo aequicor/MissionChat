@@ -27,11 +27,12 @@ private typealias Ctx = PipelineContext<MessagesState, MessagesIntent, MessagesA
 
 internal class ChatContainer(
     chat: Chat?,
+    headTopic: Topic?,
     private val userChatInteractor: UserChatInteractor
 ) : Container<MessagesState, MessagesIntent, MessagesAction> {
 
     private var currentChatId = chat?.id
-    private var currentTopicId: Identifier? = chat?.headTopic?.id
+    private var headTopicId: Identifier? = headTopic?.id ?: chat?.headTopic?.id
     private var generationJob: Job? = null
     private var messages: Map<Topic, List<MessageInference>> = LinkedHashMap()
     private val humanInterlocutor = Interlocutor.Human(name = "User")
@@ -73,7 +74,7 @@ internal class ChatContainer(
 
     private suspend fun Ctx.loadMessages() {
         try {
-            val topicId = currentTopicId
+            val topicId = headTopicId
             if (topicId == null) {
                 updateState { MessagesState.Loaded(emptyList(), false) }
                 return
@@ -113,7 +114,7 @@ internal class ChatContainer(
         if (currentChatId == null) {
             createNewChat()
         }
-        val topic = currentTopicId.let { id -> messages.keys.firstOrNull { it.id == id } } ?: createTopic()
+        val topic = headTopicId.let { id -> messages.keys.firstOrNull { it.id == id } } ?: createTopic()
         val messagesContext = messages[topic].orEmpty()
         val humanMessage = MessageInference.HumanMessage(
             id = Identifier.random(),
@@ -126,6 +127,7 @@ internal class ChatContainer(
 
         generationJob = launch {
             userChatInteractor.sendMessage(
+                topic = topic,
                 context = messagesContext,
                 message = humanMessage
             ).catch { e ->
@@ -168,7 +170,7 @@ internal class ChatContainer(
         try {
             val chat = userChatInteractor.createChat(title = "New Chat", null, "New topic")
             currentChatId = chat.id
-            currentTopicId = chat.headTopic.id
+            headTopicId = chat.headTopic.id
             messages = messages.toMutableMap().apply { put(chat.headTopic, emptyList()) }
             action(MessagesAction.ChatCreated(chat))
         } catch (e: Exception) {
@@ -178,7 +180,7 @@ internal class ChatContainer(
 
     private suspend fun Ctx.createTopic(): Topic {
         val chatId = currentChatId ?: throw IllegalStateException("Cannot create topic without a chat")
-        val topic = userChatInteractor.createTopic(chatId, "New topic is creating")
+        val topic = userChatInteractor.createTopic(chatId, "New topic is creating2")
         messages = LinkedHashMap(messages).apply { set(topic, emptyList()) }
         syncState(isGenerating = false)
         action(MessagesAction.TopicCreated(topic))

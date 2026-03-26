@@ -26,8 +26,8 @@ interface UserChatInteractor {
 
     suspend fun getArchivedChats(
         limit: Int = 50,
-        before : LocalDateTime = LocalDateTime.now()
-    ) : List<Chat>
+        before: LocalDateTime = LocalDateTime.now()
+    ): List<Chat>
 
     /**
      * Retrieves a list of topics within a specific chat.
@@ -77,7 +77,11 @@ interface UserChatInteractor {
      * @param message The human-generated message to be sent.
      * @return A [Flow] emitting [MessageInference] updates (e.g., streaming AI response).
      */
-    fun sendMessage(context: List<MessageInference>, message: MessageInference.HumanMessage): Flow<MessageInference>
+    fun sendMessage(
+        topic: Topic,
+        context: List<MessageInference>,
+        message: MessageInference.HumanMessage
+    ): Flow<MessageInference>
 
     /**
      * Deletes a message by its identifier.

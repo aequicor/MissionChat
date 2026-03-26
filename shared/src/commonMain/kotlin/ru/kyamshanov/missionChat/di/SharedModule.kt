@@ -41,7 +41,7 @@ val sharedModule = module {
     factory<MessagesComponent> { (params: MessagesParams) ->
         DefaultMessagesComponent(
             componentContext = params.componentContext,
-            containerFactory = { ChatContainer(params.chat, get()) },
+            containerFactory = { ChatContainer(params.chat, params.topic, get()) },
             onChatCreated = params.onChatCreated,
             onTopicCreated = params.onTopicCreated,
         )

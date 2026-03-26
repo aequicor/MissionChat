@@ -6,6 +6,7 @@ import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.pushToFront
+import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.lifecycle.coroutines.coroutineScope
 import kotlinx.coroutines.CoroutineScope
@@ -85,6 +86,9 @@ internal class DefaultWelcomeScreenComponent(
                     val topics = activeChats[chat].orEmpty()
                     activeChats -= chat
                     archivedChats = archivedChats.toMutableMap().apply { put(chat, topics) }
+                    coroutineScope.launch {
+                        userChatInteractor.setArchivationChat(chat, true)
+                    }
                     if (selectedChat == chat) {
                         activeChats.entries.firstOrNull().also { entry ->
                             if (entry == null) {
@@ -101,6 +105,9 @@ internal class DefaultWelcomeScreenComponent(
                     val topics = archivedChats[chat].orEmpty()
                     archivedChats -= chat
                     archivedChats = activeChats.toMutableMap().apply { put(chat, topics) }
+                    coroutineScope.launch {
+                        userChatInteractor.setArchivationChat(chat, false)
+                    }
                 }
             )
         )
@@ -129,7 +136,7 @@ internal class DefaultWelcomeScreenComponent(
                 sidebarComponent.updateChats(activeChatsWithTopics, archivedChatsWithTopics)
                 activeChatsWithTopics.entries.firstOrNull()?.also { (chat, topics) ->
                     topics.firstOrNull()?.also { topic ->
-                        sidebarComponent.selectTopic(chat, topic)
+                        selectTopic(chat, topic)
                     }
                 }
             } catch (e: Exception) {
@@ -143,14 +150,15 @@ internal class DefaultWelcomeScreenComponent(
             require(topic == null)
             selectedChat = null
             selectedTopic = null
-            chatNav.pushToFront(ChatConfig(null, null))
+            chatNav.replaceAll(ChatConfig(null, null))
             return
         }
         requireNotNull(topic)
         require(activeChats.contains(chat))
         selectedChat = chat
         selectedTopic = topic
-        chatNav.pushToFront(ChatConfig(chat.id, topic.id))
+        sidebarComponent.selectTopic(chat, topic)
+        chatNav.replaceAll(ChatConfig(chat.id, topic.id))
     }
 
 

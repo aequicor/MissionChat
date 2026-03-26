@@ -2,6 +2,7 @@ package ru.kyamshanov.missionChat.domain.interactors
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.datetime.LocalDateTime
 import ru.kyamshanov.missionChat.data.models.Message
 import ru.kyamshanov.missionChat.data.network.DeepseekApi
@@ -43,6 +44,7 @@ internal class UserChatInteractorImpl(
         repository.createTopic(chatId, title)
 
     override fun sendMessage(
+        topic: Topic,
         context: List<MessageInference>,
         message: MessageInference.HumanMessage
     ): Flow<MessageInference> = flow {
@@ -57,18 +59,21 @@ internal class UserChatInteractorImpl(
 
         val assistantMessageId = Identifier.random()
         var fullText = ""
-
+        var lastMessage: MessageInference? = null
+        repository.saveMessage(topic.id, message)
         api.chatCompletionStream(
             userMessage = message.text,
             chatHistory = chatHistory
-        ).collect { chunk ->
+        ).onCompletion {
+            lastMessage?.also { repository.saveMessage(topic.id, it) }
+        }.collect { chunk ->
             fullText += chunk
             emit(
                 MessageInference.AssistantMessage(
                     id = assistantMessageId,
                     text = fullText,
                     createdAt = LocalDateTime.now()
-                )
+                ).also { lastMessage = it }
             )
         }
     }

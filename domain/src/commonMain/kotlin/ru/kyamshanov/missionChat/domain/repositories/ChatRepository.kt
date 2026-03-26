@@ -107,21 +107,12 @@ internal interface ChatRepository {
     suspend fun deleteTopic(topicId: Identifier)
 
     /**
-     * Sends a message to a specific topic.
-     *
-     * @param topicId The unique identifier of the topic.
-     * @param text The content of the message.
-     * @return The sent [ru.kyamshanov.missionChat.domain] object.
-     */
-    suspend fun sendMessage(topicId: Identifier, text: String): MessageInference
-
-    /**
      * Saves an assistant message to a specific topic.
      *
      * @param topicId The unique identifier of the topic.
      * @param message The assistant message to save.
      */
-    suspend fun saveAssistantMessage(topicId: Identifier, message: MessageInference.AssistantMessage)
+    suspend fun saveMessage(topicId: Identifier, message: MessageInference)
 
     /**
      * Edits the content of an existing message.

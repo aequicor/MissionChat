@@ -2,7 +2,9 @@ package ru.kyamshanov.missionChat.data.repositories
 
 import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
+import jdk.jfr.internal.event.EventConfiguration.timestamp
 import kotlinx.datetime.LocalDateTime
+import kotlinx.serialization.json.JsonNull.content
 import ru.kyamshanov.missionChat.data.database.AppDatabase
 import ru.kyamshanov.missionChat.data.database.entities.ChatEntity
 import ru.kyamshanov.missionChat.data.database.entities.MessageEntity
@@ -64,7 +66,7 @@ internal class RoomChatRepository(
                 before = topicEntity.createdAt - 1,
             ).firstOrNull()
             currentTopicId = previousTopic?.id
-            currentBefore = Long.MAX_VALUE
+            //currentBefore = Long.MAX_VALUE
         }
         return result
     }
@@ -153,29 +155,11 @@ internal class RoomChatRepository(
         topicDao.deleteTopic(topicId)
     }
 
-    override suspend fun sendMessage(topicId: Identifier, text: String): MessageInference {
-        val now = LocalDateTime.nowEpochMilliseconds
-        val message = MessageEntity(
-            id = Identifier.random(),
-            conversationId = topicId.toString(),
-            type = "HUMAN",
-            content = text,
-            humanName = "User",
-            timestamp = now
-        )
-        messageDao.insert(message)
-        return message.toDomain()
-    }
-
-    override suspend fun saveAssistantMessage(topicId: Identifier, message: MessageInference.AssistantMessage) {
-        val entity = MessageEntity(
-            id = message.id,
-            conversationId = topicId.toString(),
-            type = "ASSISTANT",
-            content = message.text,
-            assistantAssociatedHumanName = message.associatedHuman?.name,
-            timestamp = message.createdAt.toEpochMilliseconds()
-        )
+    override suspend fun saveMessage(
+        topicId: Identifier,
+        message: MessageInference
+    ) {
+        val entity = message.toEntity(topicId)
         messageDao.insert(entity)
     }
 
@@ -224,5 +208,39 @@ internal class RoomChatRepository(
 
             else -> MessageInference.HumanMessage(id, content, dateTime, Interlocutor.Human("Unknown"))
         }
+    }
+
+    private fun MessageInference.toEntity(topicId: Identifier): MessageEntity {
+        val type = when (this) {
+            is MessageInference.AssistantFunctionCalling -> {
+                "TOOL"
+            }
+
+            is MessageInference.AssistantMessage -> {
+                "ASSISTANT"
+            }
+
+            is MessageInference.FunctionCallingResponse -> {
+                "TOOL"
+            }
+
+            is MessageInference.HumanMessage -> {
+                "HUMAN"
+            }
+
+            is MessageInference.SystemMessage -> {
+                "SYSTEM"
+            }
+        }
+        return MessageEntity(
+            id = id,
+            conversationId = topicId.toString(),
+            type = type,
+            content = text,
+            humanName = null,
+            assistantAssociatedHumanName = null,
+            toolId = null,
+            timestamp = createdAt.toEpochMilliseconds()
+        )
     }
 }

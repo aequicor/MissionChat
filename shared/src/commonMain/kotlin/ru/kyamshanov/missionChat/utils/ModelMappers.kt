@@ -21,7 +21,8 @@ fun MessageInference.toPresentation(): MessagePresentationModel {
     return MessagePresentationModel(
         id = id.toUiID(),
         content = text,
-        type = type
+        type = type,
+
     )
 }
 

@@ -16,7 +16,7 @@ interface MessageDao {
     @Update
     suspend fun update(message: MessageEntity)
 
-    @Query("SELECT * FROM messages WHERE conversationId = :topicId AND timestamp < :before ORDER BY timestamp DESC LIMIT :limit")
+    @Query("SELECT * FROM messages WHERE conversationId = :topicId AND timestamp < :before ORDER BY timestamp LIMIT :limit")
     suspend fun getMessages(topicId: String, limit: Int, before: Long): List<MessageEntity>
 
     @Query("DELETE FROM messages WHERE id = :messageId")
