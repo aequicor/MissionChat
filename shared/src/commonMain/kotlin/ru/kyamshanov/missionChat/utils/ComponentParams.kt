@@ -30,8 +30,9 @@ data class SidebarParams(
  */
 data class ChatInputParams(
     val componentContext: ComponentContext,
-    val onSendMessage: (String) -> Unit,
-    val onStopGeneration: () -> Unit,
+    val onSendMessage: (String) -> Boolean,
+    val onStopGeneration: () -> Boolean,
+    val onStartNewTopic: () -> Unit,
 )
 
 /**
@@ -43,5 +44,9 @@ data class MessagesParams(
     val topic: Topic?,
     val componentContext: ComponentContext,
     val onChatCreated: (Chat) -> Unit,
-    val onTopicCreated: (Topic) -> Unit,
+)
+
+
+data class ChatOrchestratorParams(
+    val componentContext: ComponentContext,
 )

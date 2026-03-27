@@ -1,6 +1,7 @@
 package ru.kyamshanov.missionChat.domain.models
 
 import kotlinx.datetime.LocalDateTime
+import ru.kyamshanov.missionChat.domain.utils.now
 
 
 /**
@@ -13,7 +14,7 @@ import kotlinx.datetime.LocalDateTime
  */
 data class Topic(
     val id: Identifier,
-    val title: String,
+    val title: String?,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime
 )

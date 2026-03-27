@@ -90,7 +90,7 @@ internal interface ChatRepository {
      * @param title The title of the topic.
      * @return The created [ru.kyamshanov.missionChat.domain] object.
      */
-    suspend fun createTopic(chatId: Identifier, title: String): Topic
+    suspend fun createTopic(chatId: Identifier, title: String?): Topic
 
     /**
      * Updates an existing topic's title.

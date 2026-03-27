@@ -67,7 +67,11 @@ interface UserChatInteractor {
      * @param description An optional description for the chat.
      * @return The created [Chat] object.
      */
-    suspend fun createChat(title: String, description: String? = null, firstTopicTitle: String): Chat
+    suspend fun createChat(
+        title: String,
+        description: String? = null,
+        firstTopicTitle: String
+    ): Chat
 
     /**
      * Creates a new topic within a chat.
@@ -75,7 +79,7 @@ interface UserChatInteractor {
      * @param title The title of the topic.
      * @return The created [Topic] object.
      */
-    suspend fun createTopic(chatId: Identifier, title: String): Topic
+    suspend fun createTopic(chatId: Identifier, title: String?): Topic
 
     /**
      * Sends a message and receives a stream of response updates.

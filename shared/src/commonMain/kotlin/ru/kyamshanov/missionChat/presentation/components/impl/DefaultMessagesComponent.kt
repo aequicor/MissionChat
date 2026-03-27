@@ -16,7 +16,6 @@ internal class DefaultMessagesComponent(
     componentContext: ComponentContext,
     containerFactory: () -> ChatContainer,
     onChatCreated: (Chat) -> Unit,
-    onTopicCreated: (Topic) -> Unit,
 ) : MessagesComponent, ComponentContext by componentContext,
     Store<MessagesState, MessagesIntent, MessagesAction>
     by componentContext.retainedStore(factory = containerFactory) {
@@ -26,7 +25,6 @@ internal class DefaultMessagesComponent(
             actions.collect {
                 when (it) {
                     is MessagesAction.ChatCreated -> onChatCreated(it.chat)
-                    is MessagesAction.TopicCreated -> onTopicCreated(it.topic)
                 }
             }
         }

@@ -40,7 +40,7 @@ internal class UserChatInteractorImpl(
     override suspend fun createChat(title: String, description: String?, firstTopicTitle: String): Chat =
         repository.createChat(title, description, firstTopicTitle)
 
-    override suspend fun createTopic(chatId: Identifier, title: String): Topic =
+    override suspend fun createTopic(chatId: Identifier, title: String?): Topic =
         repository.createTopic(chatId, title)
 
     override fun sendMessage(
@@ -57,7 +57,7 @@ internal class UserChatInteractorImpl(
             }
         }
 
-        val assistantMessageId = Identifier.random()
+        val assistantMessageId = Identifier.new()
         var fullText = ""
         var lastMessage: MessageInference? = null
         repository.saveMessage(topic.id, message)

@@ -114,10 +114,10 @@ internal class ChatContainer(
         if (currentChatId == null) {
             createNewChat()
         }
-        val topic = headTopicId.let { id -> messages.keys.firstOrNull { it.id == id } } ?: createTopic()
+        val topic = headTopicId.let { id -> messages.keys.first { it.id == id } }
         val messagesContext = messages[topic].orEmpty()
         val humanMessage = MessageInference.HumanMessage(
-            id = Identifier.random(),
+            id = Identifier.new(),
             text = text,
             createdAt = LocalDateTime.now(),
             human = humanInterlocutor,
@@ -176,15 +176,6 @@ internal class ChatContainer(
         } catch (e: Exception) {
             updateState { MessagesState.Error(e) }
         }
-    }
-
-    private suspend fun Ctx.createTopic(): Topic {
-        val chatId = currentChatId ?: throw IllegalStateException("Cannot create topic without a chat")
-        val topic = userChatInteractor.createTopic(chatId, "New topic is creating2")
-        messages = LinkedHashMap(messages).apply { set(topic, emptyList()) }
-        syncState(isGenerating = false)
-        action(MessagesAction.TopicCreated(topic))
-        return topic
     }
 
     private suspend fun Ctx.syncState(isGenerating: Boolean = false) {

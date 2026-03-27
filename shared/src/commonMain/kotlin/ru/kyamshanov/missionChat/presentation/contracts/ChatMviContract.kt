@@ -75,9 +75,4 @@ sealed interface MessagesAction : MVIAction {
     data class ChatCreated(
         val chat: Chat
     ) : MessagesAction
-
-    data class TopicCreated(
-        val topic: Topic
-    ) : MessagesAction
-
 }

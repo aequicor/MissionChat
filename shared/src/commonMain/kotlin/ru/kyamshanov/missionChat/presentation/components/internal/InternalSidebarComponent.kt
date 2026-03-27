@@ -1,7 +1,8 @@
-package ru.kyamshanov.missionChat.presentation.components
+package ru.kyamshanov.missionChat.presentation.components.internal
 
 import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Topic
+import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
 
 internal interface InternalSidebarComponent : SidebarComponent {
 

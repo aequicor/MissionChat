@@ -37,7 +37,9 @@ fun InputSectionContent(
         Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = {}) {
+        IconButton(onClick = {
+            component.intent(ChatInputIntent.ClickOnStartNewTopic)
+        }) {
             Icon(
                 Icons.Default.Add,
                 null,

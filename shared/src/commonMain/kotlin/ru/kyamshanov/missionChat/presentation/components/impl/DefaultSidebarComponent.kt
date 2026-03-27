@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.update
 import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.domain.models.Topic
-import ru.kyamshanov.missionChat.presentation.components.InternalSidebarComponent
+import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
 import ru.kyamshanov.missionChat.presentation.models.ChatUiModel
 import ru.kyamshanov.missionChat.presentation.models.TopicUiModel

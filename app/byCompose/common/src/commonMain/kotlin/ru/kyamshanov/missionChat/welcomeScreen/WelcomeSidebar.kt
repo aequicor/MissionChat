@@ -68,8 +68,16 @@ fun WelcomeSidebar(
             items(activeChats, key = { it.id }) { chat ->
                 AnimatedVisibility(
                     visible = isActiveExpanded,
-                    enter = fadeIn(animationSpec = tween(200)) + expandVertically(animationSpec = tween(300)),
-                    exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(300))
+                    enter = fadeIn(animationSpec = tween(200)) + expandVertically(
+                        animationSpec = tween(
+                            300
+                        )
+                    ),
+                    exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(
+                        animationSpec = tween(
+                            300
+                        )
+                    )
                 ) {
                     SidebarItem(
                         chat = chat,
@@ -97,15 +105,23 @@ fun WelcomeSidebar(
             items(archivedChats, key = { it.id }) { chat ->
                 AnimatedVisibility(
                     visible = isArchiveExpanded,
-                    enter = fadeIn(animationSpec = tween(200)) + expandVertically(animationSpec = tween(300)),
-                    exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(300))
+                    enter = fadeIn(animationSpec = tween(200)) + expandVertically(
+                        animationSpec = tween(
+                            300
+                        )
+                    ),
+                    exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(
+                        animationSpec = tween(
+                            300
+                        )
+                    )
                 ) {
                     SidebarItem(
                         chat = chat,
                         isSelected = chat.id == selectedChatId,
                         onDelete = { sidebarComponent.deleteChat(chat) },
                         onUnarchive = {
-                           sidebarComponent.unarchiveChat(chat)
+                            sidebarComponent.unarchiveChat(chat)
                         }
                     )
                 }
@@ -160,7 +176,8 @@ private fun SidebarItem(
     onUnarchive: (() -> Unit)? = null,
     onOpenAllTopics: (() -> Unit)? = null
 ) {
-    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+    val backgroundColor =
+        if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
     val contentColor =
         if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
     val fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
@@ -202,7 +219,8 @@ private fun SidebarItem(
             )
 
             // Action Buttons (Archive, Unarchive, Delete)
-            val showActions = isHovered || (isSelected && (onArchive != null || onUnarchive != null))
+            val showActions =
+                isHovered || (isSelected && (onArchive != null || onUnarchive != null))
 
             AnimatedVisibility(
                 visible = showActions,
@@ -267,13 +285,13 @@ private fun SidebarItem(
                         .padding(start = 24.dp, top = 4.dp) // Indent topics
                 ) {
                     // Show last 3 topics
-                    chat.topics.take(3).forEach { topic ->
+                    chat.topics.reversed().take(3).forEach { topic ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .let {
-                                    if(onClick != null) {
+                                    if (onClick != null) {
                                         it.clickable { onClick(topic) }
                                     } else {
                                         it
@@ -290,7 +308,7 @@ private fun SidebarItem(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = topic.title,
+                                text = topic.title ?: "New topic",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                 maxLines = 1,
@@ -299,29 +317,30 @@ private fun SidebarItem(
                         }
                     }
 
-                    // "All Topics" Button
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp, bottom = 8.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onOpenAllTopics?.invoke() }
-                            .padding(vertical = 6.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "All topics",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    if (chat.topics.size > 3) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp, bottom = 8.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onOpenAllTopics?.invoke() }
+                                .padding(vertical = 6.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.List,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "All topics",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }

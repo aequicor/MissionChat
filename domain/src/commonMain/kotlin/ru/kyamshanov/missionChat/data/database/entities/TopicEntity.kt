@@ -18,7 +18,7 @@ import ru.kyamshanov.missionChat.domain.models.Identifier
 data class TopicEntity(
     @PrimaryKey val id: Identifier,
     val chatId: Identifier,
-    val title: String,
+    val title: String?,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
 )

@@ -4,31 +4,38 @@ import kotlinx.serialization.Serializable
 import pro.respawn.flowmvi.api.MVIAction
 import pro.respawn.flowmvi.api.MVIIntent
 import pro.respawn.flowmvi.api.MVIState
+import ru.kyamshanov.missionChat.domain.models.Chat
+import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.utils.empty
 
-@Serializable
-data class ChatInputState(
-    val typingHint: String,
-    val inputValue: String = String.empty,
-    val isGenerating: Boolean = false,
-) : MVIState
+class ChatInputContract {
 
-sealed interface ChatInputIntent : MVIIntent {
+    @Serializable
+    data class State(
+        val typingHint: String,
+        val inputValue: String = String.empty,
+        val isGenerating: Boolean = false,
+    ) : MVIState
 
-    data class ChangeInputValue(
-        val newValue: String
-    ) : ChatInputIntent
+    sealed interface Intent : MVIIntent {
 
-    data object ClickOnSendMessage : ChatInputIntent
+        data class ChangeInputValue(
+            val newValue: String
+        ) : Intent
 
-    data object StopGeneration : ChatInputIntent
+        data object ClickOnSendMessage : Intent
 
-    data class SetGenerating(val isGenerating: Boolean) : ChatInputIntent
-}
+        data object ClickOnStartNewTopic : Intent
 
-sealed interface ChatInputAction : MVIAction {
+        data object StopGeneration : Intent
+    }
 
-    data class SendMessage(val text: String) : ChatInputAction
+    internal sealed interface InternalIntent : Intent {
 
-    data object StopGeneration : ChatInputAction
+
+        data object OnFinishGeneration : InternalIntent
+
+    }
+
+    data object Action : MVIAction
 }

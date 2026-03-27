@@ -10,9 +10,6 @@ import ru.kyamshanov.missionChat.data.database.entities.TopicEntity
 import ru.kyamshanov.missionChat.domain.models.*
 import ru.kyamshanov.missionChat.domain.repositories.ChatRepository
 import ru.kyamshanov.missionChat.domain.utils.now
-import ru.kyamshanov.missionChat.domain.utils.nowEpochMilliseconds
-import ru.kyamshanov.missionChat.domain.utils.toEpochMilliseconds
-import ru.kyamshanov.missionChat.domain.utils.toLocalDateTime
 
 /**
  * Room-based implementation of [ChatRepository].
@@ -111,8 +108,8 @@ internal class RoomChatRepository(
         firstTopicTitle: String
     ): Chat {
         val now = LocalDateTime.now()
-        val topicId = Identifier.random()
-        val chatId = Identifier.random()
+        val topicId = Identifier.new()
+        val chatId = Identifier.new()
         val topic = TopicEntity(
             id = topicId,
             chatId = chatId,
@@ -160,10 +157,10 @@ internal class RoomChatRepository(
         chatDao.deleteChat(chatId)
     }
 
-    override suspend fun createTopic(chatId: Identifier, title: String): Topic {
+    override suspend fun createTopic(chatId: Identifier, title: String?): Topic {
         val now = LocalDateTime.now()
         val topic = TopicEntity(
-            id = Identifier.random(),
+            id = Identifier.new(),
             chatId = chatId,
             title = title,
             createdAt = now,
