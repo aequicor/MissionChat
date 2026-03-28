@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.update
 import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.domain.models.Topic
-import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
+import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.models.ChatUiModel
 import ru.kyamshanov.missionChat.presentation.models.TopicUiModel
 import ru.kyamshanov.missionChat.presentation.models.toIdentifier
@@ -71,29 +71,30 @@ class DefaultSidebarComponent(
         }
     }
 
-    override fun addTopic(
-        chat: Chat,
-        topic: Topic
-    ) {
+    override fun addTopic(topic: Pair<Chat, Topic>) {
         _state.update { value ->
-            val chatIndex = value.activeChats.indexOfFirst { it.id == chat.id.toUiID() }
+            val (addTopicIn, topic) = topic
+            val chatIndex = value.activeChats.indexOfFirst { it.id == addTopicIn.id.toUiID() }
             val chat = value.activeChats[chatIndex]
             val updatedTopics = chat.topics + topic.toUI()
             val updatedChat = chat.copy(topics = updatedTopics)
             value.copy(
-                archivedChats = value.activeChats.toMutableList().also { it[chatIndex] = updatedChat }
+                archivedChats = value.activeChats.toMutableList()
+                    .also { it[chatIndex] = updatedChat }
             )
         }
     }
 
-    override fun selectTopic(
-        chat: Chat,
-        topic: Topic
-    ) {
+    override fun selectTopic(topic: Pair<Chat, Topic>?) {
         _state.update { value ->
-            val chat = value.activeChats.first { it.id == chat.id.toUiID() }
-            val topic = chat.topics.first { it.id == topic.id.toUiID() }
-            value.copy(selectedChat = chat, selectedTopic = topic)
+            if (topic == null) {
+                value.copy(selectedChat = null, selectedTopic = null)
+            } else {
+                val (c, t) = topic
+                val chat = value.activeChats.first { it.id == c.id.toUiID() }
+                val topic = chat.topics.first { it.id == t.id.toUiID() }
+                value.copy(selectedChat = chat, selectedTopic = topic)
+            }
         }
     }
 

@@ -7,19 +7,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import ru.kyamshanov.missionChat.models.subscribeAsUiState
 import ru.kyamshanov.missionChat.models.toUI
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
-import ru.kyamshanov.missionChat.presentation.contracts.ChatInputIntent
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract.Intent
 
 
 @Composable
@@ -27,18 +36,14 @@ fun InputSectionContent(
     component: ChatInputComponent,
     isGenerating: Boolean,
 ) {
-    val state by component.subscribeAsUiState { it.toUI() }
-
-    LaunchedEffect(isGenerating) {
-        component.intent(ChatInputIntent.SetGenerating(isGenerating))
-    }
+    val state by component.store.subscribeAsUiState { it.toUI() }
 
     Row(
         Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = {
-            component.intent(ChatInputIntent.ClickOnStartNewTopic)
+            component.store.intent(Intent.ClickOnStartNewTopic)
         }) {
             Icon(
                 Icons.Default.Add,
@@ -48,7 +53,7 @@ fun InputSectionContent(
         }
         TextField(
             value = state.inputValue,
-            onValueChange = { component.intent(ChatInputIntent.ChangeInputValue(it)) },
+            onValueChange = { component.store.intent(Intent.ChangeInputValue(it)) },
             placeholder = {
                 Text(
                     state.typingHint,
@@ -63,9 +68,9 @@ fun InputSectionContent(
                             false
                         } else {
                             if (isGenerating) {
-                                component.intent(ChatInputIntent.StopGeneration)
+                                component.store.intent(Intent.StopGeneration)
                             } else if (state.inputValue.isNotBlank()) {
-                                component.intent(ChatInputIntent.ClickOnSendMessage)
+                                component.store.intent(Intent.ClickOnSendMessage)
                             }
                             true
                         }
@@ -84,9 +89,9 @@ fun InputSectionContent(
         IconButton(
             onClick = {
                 if (isGenerating) {
-                    component.intent(ChatInputIntent.StopGeneration)
+                    component.store.intent(Intent.StopGeneration)
                 } else if (state.inputValue.isNotBlank()) {
-                    component.intent(ChatInputIntent.ClickOnSendMessage)
+                    component.store.intent(Intent.ClickOnSendMessage)
                 }
             },
             enabled = state.inputValue.isNotBlank() || isGenerating

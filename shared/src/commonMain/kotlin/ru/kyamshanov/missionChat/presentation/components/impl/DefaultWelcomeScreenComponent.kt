@@ -8,25 +8,23 @@ import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.lifecycle.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import pro.respawn.flowmvi.compose.dsl.subscribe
-import pro.respawn.flowmvi.essenty.dsl.subscribe
+import pro.respawn.flowmvi.dsl.subscribe
 import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractor
-import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Identifier
-import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
 import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
-import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent
-import ru.kyamshanov.missionChat.presentation.components.internal.ChatOrchestratorComponent
+import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.internal.selectedTopic
 import ru.kyamshanov.missionChat.presentation.contracts.ChatOrchestratorContract
-import ru.kyamshanov.missionChat.presentation.contracts.MessagesAction
 import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
-import ru.kyamshanov.missionChat.utils.*
-import kotlin.also
+import ru.kyamshanov.missionChat.utils.ChatInputParams
+import ru.kyamshanov.missionChat.utils.ChatOrchestratorParams
+import ru.kyamshanov.missionChat.utils.ComponentFactory
+import ru.kyamshanov.missionChat.utils.IdentifierSerializer
+import ru.kyamshanov.missionChat.utils.MessagesParams
+import ru.kyamshanov.missionChat.utils.SidebarParams
 
 internal class DefaultWelcomeScreenComponent(
     componentContext: ComponentContext,
@@ -46,19 +44,63 @@ internal class DefaultWelcomeScreenComponent(
         )
     )
 
+    override val sidebarComponent: InternalSidebarComponent =
+        componentFactory.createSidebarComponent(
+            SidebarParams(
+                componentContext = childContext("sidebar"),
+                onSelectedCallback = { chatId, topicId ->
+                    chatOrchestratorComponent.store.intent(
+                        ChatOrchestratorContract.Intent.SelectTopic(
+                            chatId = chatId,
+                            topicId = topicId
+                        )
+                    )
+                },
+                onArchiveChat = { chatId ->
+                    chatOrchestratorComponent.store.intent(
+                        ChatOrchestratorContract.Intent.ArchiveChat(chatId)
+                    )
+                },
+                onUnarchiveChat = { chatId ->
+                    chatOrchestratorComponent.store.intent(
+                        ChatOrchestratorContract.Intent.UnarchiveChat(chatId)
+                    )
+                }
+            )
+        )
+
+
     init {
-        chatOrchestratorComponent.store.subscribe { action ->
-            when (action) {
-                is ChatOrchestratorContract.Action.NavigateToTopic -> {
+        var lastState: ChatOrchestratorContract.State? = null
+        coroutineScope.subscribe(
+            chatOrchestratorComponent.store,
+            consume = { action ->
+                when (action) {
+                    is ChatOrchestratorContract.Action.NavigateToTopic -> {
+                        chatNav.replaceAll(
+                            ChatConfig(
+                                chatId = action.chat.id,
+                                topicId = action.topic.id
+                            )
+                        )
+                    }
+                }
+            },
+            render = { state ->
+                sidebarComponent.updateChats(state.activeChats, state.archivedChats)
+                val selectedTopic = state.selectedTopic
+                if (lastState?.selectedTopic != selectedTopic) {
+                    sidebarComponent.selectTopic(state.selectedTopic)
                     chatNav.replaceAll(
                         ChatConfig(
-                            chatId = action.chat.id,
-                            topicId = action.topic.id
+                            chatId = selectedTopic?.first?.id,
+                            topicId = selectedTopic?.second?.id,
                         )
                     )
                 }
+                lastState = state
             }
-        }
+        )
     }
 
     override val chatInputComponent: ChatInputComponent = componentFactory.createChatInputComponent(
@@ -89,32 +131,6 @@ internal class DefaultWelcomeScreenComponent(
         )
 
 
-    override val sidebarComponent: InternalSidebarComponent =
-        componentFactory.createSidebarComponent(
-            SidebarParams(
-                componentContext = childContext("sidebar"),
-                onSelectedCallback = { chatId, topicId ->
-                    chatOrchestratorComponent.store.intent(
-                        ChatOrchestratorContract.Intent.SelectTopic(
-                            chatId = chatId,
-                            topicId = topicId
-                        )
-                    )
-                },
-                onArchiveChat = { chatId ->
-                    chatOrchestratorComponent.store.intent(
-                        ChatOrchestratorContract.Intent.ArchiveChat(chatId)
-                    )
-                },
-                onUnarchiveChat = { chatId ->
-                    chatOrchestratorComponent.store.intent(
-                        ChatOrchestratorContract.Intent.UnarchiveChat(chatId)
-                    )
-                }
-            )
-        )
-
-
     private fun chatChild(
         config: ChatConfig, componentContext: ComponentContext
     ): WelcomeScreenComponent.MessagesChat =
@@ -132,16 +148,6 @@ internal class DefaultWelcomeScreenComponent(
                 )
             )
         }
-
-    private fun createChatOrTopic(chat: Chat, topic: Topic) {
-        activeChats[chat]?.also { topics ->
-            activeChats = activeChats.toMutableMap().apply { put(chat, topics + topic) }
-        } ?: run {
-            activeChats = activeChats.toMutableMap().apply { put(chat, listOf(topic)) }
-        }
-        sidebarComponent.updateChats(activeChats, archivedChats)
-        sidebarComponent.selectTopic(chat, topic)
-    }
 
     @Serializable
     private data class ChatConfig(

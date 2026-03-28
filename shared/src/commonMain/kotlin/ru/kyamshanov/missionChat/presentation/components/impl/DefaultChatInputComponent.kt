@@ -20,8 +20,10 @@ internal class DefaultChatInputComponent(
     private val onStartNewTopic: () -> Unit,
 ) : InternalChatInputComponent, ComponentContext by componentContext {
 
-    private val scope = coroutineScope()
-    override val store = store<State, Intent, Action>(initial = State("Welcome")) {
+    override val store = store<State, Intent, Action>(
+        initial = State("Welcome"),
+        scope = coroutineScope()
+    ) {
         configure {
             debuggable = true
             name = "ChatInputContainer"
@@ -65,10 +67,5 @@ internal class DefaultChatInputComponent(
 
     override fun onInternalIntent(internalIntent: ChatInputContract.InternalIntent) {
         store.intent(internalIntent)
-    }
-
-
-    init {
-        store.start(scope)
     }
 }

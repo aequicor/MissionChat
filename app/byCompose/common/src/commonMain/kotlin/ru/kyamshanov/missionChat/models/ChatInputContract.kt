@@ -2,7 +2,7 @@ package ru.kyamshanov.missionChat.models
 
 import androidx.compose.runtime.Immutable
 import pro.respawn.flowmvi.api.MVIState
-import ru.kyamshanov.missionChat.presentation.contracts.ChatInputState
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract
 import ru.kyamshanov.missionChat.utils.empty
 
 @Immutable
@@ -12,7 +12,7 @@ data class ChatInputStateUI(
     val isGenerating: Boolean = false,
 ) : MVIState
 
-fun ChatInputState.toUI(): ChatInputStateUI =
+fun ChatInputContract.State.toUI(): ChatInputStateUI =
     ChatInputStateUI(
         typingHint = typingHint,
         inputValue = inputValue,

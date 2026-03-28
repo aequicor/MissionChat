@@ -11,7 +11,7 @@ internal interface InternalSidebarComponent : SidebarComponent {
         archivedChats: Map<Chat, List<Topic>>,
     )
 
-    fun addTopic(chat: Chat, topic: Topic)
+    fun addTopic(topic: Pair<Chat, Topic>)
 
-    fun selectTopic(chat: Chat, topic: Topic)
+    fun selectTopic(topic: Pair<Chat, Topic>?)
 }
