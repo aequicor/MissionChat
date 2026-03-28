@@ -15,8 +15,8 @@ import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
 import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent
+import ru.kyamshanov.missionChat.presentation.components.internal.ChatOrchestratorComponent
 import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
-import ru.kyamshanov.missionChat.presentation.components.internal.selectedTopic
 import ru.kyamshanov.missionChat.presentation.contracts.ChatOrchestratorContract
 import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
 import ru.kyamshanov.missionChat.utils.ChatInputParams
@@ -38,7 +38,8 @@ internal class DefaultWelcomeScreenComponent(
     private val currentChatComponent: MessagesComponent
         get() = chatContainer.value.active.instance.component
 
-    private val chatOrchestratorComponent = componentFactory.createChatOrchestratorComponent(
+    private val chatOrchestratorComponent: ChatOrchestratorComponent =
+        componentFactory.createChatOrchestratorComponent(
         params = ChatOrchestratorParams(
             componentContext = childContext("chatOrchestrator"),
         )
@@ -134,25 +135,22 @@ internal class DefaultWelcomeScreenComponent(
     private fun chatChild(
         config: ChatConfig, componentContext: ComponentContext
     ): WelcomeScreenComponent.MessagesChat =
-        chatOrchestratorComponent.selectedTopic.let {
-            WelcomeScreenComponent.MessagesChat(
-                component = componentFactory.createMessagesComponent(
-                    MessagesParams(
-                        chat = it?.first,
-                        topic = it?.second,
-                        componentContext = componentContext,
-                        onChatCreated = {
+        WelcomeScreenComponent.MessagesChat(
+            component = componentFactory.createMessagesComponent(
+                MessagesParams(
+                    chat = config,
+                    topic = it?.second,
+                    componentContext = componentContext,
+                    onChatCreated = {
 
-                        },
-                    )
+                    },
                 )
             )
-        }
+        )
 
     @Serializable
     private data class ChatConfig(
         @Serializable(with = IdentifierSerializer::class) val chatId: Identifier?,
-        @Serializable(with = IdentifierSerializer::class) val topicId: Identifier?,
     ) {
 
         init {

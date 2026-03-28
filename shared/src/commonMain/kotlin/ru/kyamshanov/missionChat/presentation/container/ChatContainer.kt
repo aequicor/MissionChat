@@ -11,7 +11,6 @@ import pro.respawn.flowmvi.dsl.store
 import pro.respawn.flowmvi.plugins.init
 import pro.respawn.flowmvi.plugins.recover
 import pro.respawn.flowmvi.plugins.reduce
-import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractor
 import ru.kyamshanov.missionChat.domain.models.*
 import ru.kyamshanov.missionChat.domain.utils.mix
 import ru.kyamshanov.missionChat.domain.utils.now
@@ -26,13 +25,11 @@ import ru.kyamshanov.missionChat.utils.toTopics
 private typealias Ctx = PipelineContext<MessagesState, MessagesIntent, MessagesAction>
 
 internal class ChatContainer(
-    chat: Chat?,
-    headTopic: Topic?,
-    private val userChatInteractor: UserChatInteractor
+    chatId: Identifier?,
 ) : Container<MessagesState, MessagesIntent, MessagesAction> {
 
-    private var currentChatId = chat?.id
-    private var headTopicId: Identifier? = headTopic?.id ?: chat?.headTopic?.id
+    private var currentChatId = headTopic?.first?.id
+    private var headTopicId: Identifier? = headTopic?.second?.id ?: headTopic?.first?.headTopic?.id
     private var generationJob: Job? = null
     private var messages: Map<Topic, List<MessageInference>> = LinkedHashMap()
     private val humanInterlocutor = Interlocutor.Human(name = "User")
@@ -83,7 +80,8 @@ internal class ChatContainer(
             val newMessages = userChatInteractor.getMessages(
                 topicId = topicId,
                 limit = 50,
-                before = messages.entries.lastOrNull()?.value?.lastOrNull()?.createdAt ?: LocalDateTime.now()
+                before = messages.entries.lastOrNull()?.value?.lastOrNull()?.createdAt
+                    ?: LocalDateTime.now()
             )
             messages = messages.mix(newMessages)
             syncState()
@@ -140,7 +138,8 @@ internal class ChatContainer(
                 }
                 generationJob = null
             }.collect { incomingMessage ->
-                val existingIndex = messages[topic].orEmpty().indexOfFirst { it.id == incomingMessage.id }
+                val existingIndex =
+                    messages[topic].orEmpty().indexOfFirst { it.id == incomingMessage.id }
                 messages = if (existingIndex != -1) {
                     messages.set(topic, existingIndex, incomingMessage)
                 } else {
