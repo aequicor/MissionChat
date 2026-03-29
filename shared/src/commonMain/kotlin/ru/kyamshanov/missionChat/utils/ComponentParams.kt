@@ -25,11 +25,13 @@ data class SidebarParams(
 /**
  * Data class to hold assisted parameters for [ru.kyamshanov.missionChat.presentation.components.ChatInputComponent].
  * @property componentContext The Decompose component context.
- * @property onSendMessage Callback to be invoked when a message is sent.
+ * @property onSendMessage Callback to be invoked when a message is sent. Returns true if message was accepted.
+ * @property onStopGeneration Callback to be invoked when generation should be stopped. Returns true if stopped.
+ * @property onStartNewTopic Callback to be invoked when starting a new topic.
  */
 data class ChatInputParams(
     val componentContext: ComponentContext,
-    val onSendMessage: (String) -> Boolean,
+    val onSendMessage: (String) -> Unit,
     val onStopGeneration: () -> Boolean,
     val onStartNewTopic: () -> Unit,
 )

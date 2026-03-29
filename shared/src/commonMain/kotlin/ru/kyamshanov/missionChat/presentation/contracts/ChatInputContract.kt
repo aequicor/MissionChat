@@ -4,11 +4,9 @@ import kotlinx.serialization.Serializable
 import pro.respawn.flowmvi.api.MVIAction
 import pro.respawn.flowmvi.api.MVIIntent
 import pro.respawn.flowmvi.api.MVIState
-import ru.kyamshanov.missionChat.domain.models.Chat
-import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.utils.empty
 
-class ChatInputContract {
+object ChatInputContract {
 
     @Serializable
     data class State(

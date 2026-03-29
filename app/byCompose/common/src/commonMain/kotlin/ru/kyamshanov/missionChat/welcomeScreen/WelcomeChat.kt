@@ -1,14 +1,42 @@
 package ru.kyamshanov.missionChat.welcomeScreen
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,17 +52,16 @@ import com.arkivanov.decompose.value.Value
 import pro.respawn.flowmvi.compose.dsl.subscribe
 import ru.kyamshanov.missionChat.components.WindowScaffold
 import ru.kyamshanov.missionChat.components.glassmorphism
+import ru.kyamshanov.missionChat.presentation.components.ChatComponent
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
-import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
-import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent.MessagesChat
-import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
-import ru.kyamshanov.missionChat.presentation.contracts.MessagesState
+import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent.ChatContainer
+import ru.kyamshanov.missionChat.presentation.contracts.ChatContract
 
 @Composable
 fun WelcomeChat(
     title: String,
-    messagesComponentProvider: @Composable () -> Value<ChildStack<*, MessagesChat>>,
+    messagesComponentProvider: @Composable () -> Value<ChildStack<*, ChatContainer>>,
     chatInputComponent: ChatInputComponent,
     sidebarComponent: SidebarComponent,
     modifier: Modifier = Modifier
@@ -93,7 +120,9 @@ fun WelcomeChat(
                         shape = RoundedCornerShape(20.dp),
                     )
             ) {
-                HeaderContent(title, it) { floatingSlidebarVisibility = !floatingSlidebarVisibility }
+                HeaderContent(title, it) {
+                    floatingSlidebarVisibility = !floatingSlidebarVisibility
+                }
             }
         }) {
 
@@ -105,10 +134,19 @@ fun WelcomeChat(
             animation = stackAnimation(fade()),
         ) {
             Column {
-                val messagesComponent = it.instance.component
+                val messagesComponent = it.instance
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp)) {
-                    MessagesSection(messagesComponent)
+                    when (messagesComponent) {
+                        is ChatContainer.Chat -> {
+                            MessagesSection(messagesComponent.component)
+                        }
+
+                        is ChatContainer.DummyChat -> {
+                            Text("I will be back later")
+                        }
+                    }
+
                 }
                 Box(
                     modifier = Modifier.fillMaxWidth()
@@ -117,10 +155,7 @@ fun WelcomeChat(
                             shape = RoundedCornerShape(24.dp)
                         )
                 ) {
-                    val mState by messagesComponent.subscribe()
-                    val isGenerating = (mState as? MessagesState.Loaded)?.isGenerating == true
-
-                    InputSectionContent(chatInputComponent, isGenerating)
+                    InputSectionContent(chatInputComponent)
                 }
             }
         }
@@ -188,21 +223,23 @@ fun HeaderContent(
 
 @Composable
 fun MessagesSection(
-    component: MessagesComponent,
+    component: ChatComponent,
 ) {
-    val state by component.subscribe()
-    when (val model = state) {
-        is MessagesState.Loaded -> {
-            MessagesList(
-                topics = model.topics,
-                onDelete = { t, m -> component.intent(MessagesIntent.DeleteMessage(t, m)) })
-        }
+    val state by component.store.subscribe()
+    MessagesList(
+        topics = state.topics,
+        onDelete = { t, m -> component.store.intent(ChatContract.Intent.DeleteMessage(t, m)) })
+    /*  is MessagesState.Loaded -> {
+          MessagesList(
+              topics = model.topics,
+              onDelete = { t, m -> component.intent(MessagesIntent.DeleteMessage(t, m)) })
+      }
 
-        else -> Box(Modifier.fillMaxSize()) {
-            CircularProgressIndicator(
-                Modifier.align(Alignment.Center),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
+      else -> Box(Modifier.fillMaxSize()) {
+          CircularProgressIndicator(
+              Modifier.align(Alignment.Center),
+              color = MaterialTheme.colorScheme.onSurface
+          )
+      }*/
+
 }

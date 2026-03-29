@@ -1,8 +1,6 @@
 package ru.kyamshanov.missionChat.presentation.components
 
 import kotlinx.coroutines.flow.StateFlow
-import ru.kyamshanov.missionChat.domain.models.Chat
-import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.presentation.models.ChatUiModel
 import ru.kyamshanov.missionChat.presentation.models.TopicUiModel
 
@@ -15,8 +13,6 @@ interface SidebarComponent {
     fun archiveChat(chat: ChatUiModel)
 
     fun unarchiveChat(chat: ChatUiModel)
-
-    fun deleteChat(chat: ChatUiModel)
 
     data class State(
         val activeChats: List<ChatUiModel> = emptyList(),

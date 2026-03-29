@@ -1,10 +1,8 @@
 package ru.kyamshanov.missionChat.domain.interactors
 
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.datetime.LocalDateTime
 import ru.kyamshanov.missionChat.domain.models.Chat
@@ -32,184 +30,234 @@ internal class ChatOrchestratorImpl(
     private val _selectedTopic = MutableStateFlow<Topic?>(null)
     override val selectedTopic: StateFlow<Topic?> = _selectedTopic.asStateFlow()
 
-    private val _messages = MutableStateFlow<Map<Topic, List<MessageInference>>>(emptyMap())
-    override val messages: StateFlow<Map<Topic, List<MessageInference>>> = _messages.asStateFlow()
-
     override suspend fun loadNextArchiveChat() {
-        loadChats(isArchived = true, isNext = true)
+        loadChats(isArchived = true)
     }
 
-    override suspend fun loadNextUnarchiveChat() {
-        loadChats(isArchived = false, isNext = true)
+    override suspend fun loadNextActiveChat() {
+        loadChats(isArchived = false)
     }
 
     override suspend fun loadPreviousArchiveChat() {
-        loadChats(isArchived = true, isNext = false)
+        // Not supported by the interactor which uses 'before' for pagination
     }
 
-    override suspend fun loaPreviousUnarchiveChat() {
-        loadChats(isArchived = false, isNext = false)
+    override suspend fun loadPreviousActiveChat() {
+        // Not supported by the interactor which uses 'before' for pagination
     }
 
-    override suspend fun select(topic: Pair<Chat, Topic>) {
-        _selectedChat.value = topic.first
-        _selectedTopic.value = topic.second
-        setCurrentTopic(topic.second)
-    }
-
-    override suspend fun loadTopics(chat: Chat): TopicProvider {
-        return TopicProviderImpl(chat).apply { loadNext() }
-    }
-
-    override fun sendMessage(
-        message: MessageInference.HumanMessage
-    ): Flow<MessageInference> {
-        val topic = _selectedTopic.value ?: throw IllegalStateException("No topic selected")
-
-        updateMessages(topic, message)
-
-        val context = _messages.value[topic] ?: emptyList()
-
-        return interactor.sendMessage(topic, context, message)
-            .onEach { updateMessages(topic, it) }
-    }
-
-    override suspend fun loadNextMessages() {
-        // Текущий API интерактора не поддерживает загрузку "после" (forward pagination)
-    }
-
-    override suspend fun loadPreviousMessages() {
-        val topic = _selectedTopic.value ?: return
-        val currentMessagesMap = _messages.value
-
-        val oldestTopic = currentMessagesMap.keys.minByOrNull { it.createdAt } ?: topic
-        val oldestMessage = currentMessagesMap[oldestTopic]?.firstOrNull()
-
-        val before = oldestMessage?.createdAt ?: oldestTopic.createdAt
-
-        val olderMessagesMap =
-            interactor.getMessages(oldestTopic.id, limit = PAGINATION_LIMIT, before = before)
-
-        _messages.update { current ->
-            val newMap = current.toMutableMap()
-            olderMessagesMap.forEach { (t, msgs) ->
-                val existing = newMap[t] ?: emptyList()
-                newMap[t] = (msgs + existing).distinctBy { it.id }.sortedBy { it.createdAt }
-            }
-            newMap.toList().sortedBy { it.first.createdAt }.toMap()
-        }
-    }
-
-    override suspend fun deleteMessage(messageId: Identifier) {
-        interactor.deleteMessage(messageId)
-        _messages.update { current ->
-            current.mapValues { (_, msgs) -> msgs.filter { it.id != messageId } }
-        }
-    }
-
-    override suspend fun setCurrentTopic(topic: Topic) {
-        if (_selectedTopic.value?.id == topic.id && _messages.value.isNotEmpty()) return
-
-        _selectedTopic.value = topic
-        val chat = (_activeChats.value.items + _archivedChats.value.items)
-            .find { it.chat.id == topic.chatId }?.chat
+    override suspend fun select(
+        chatId: Identifier,
+        topicId: Identifier
+    ) {
+        val (chat, topics) = activeChats.value.items.first { it.chat.id == chatId }
+        val topic = topics.first { it.id == topicId }
         _selectedChat.value = chat
-
-        val initialMessages = interactor.getMessages(topic.id, limit = PAGINATION_LIMIT)
-        _messages.value = initialMessages
+        _selectedTopic.value = topic
     }
 
-    private suspend fun loadChats(isArchived: Boolean, isNext: Boolean) {
+    override suspend fun archiveChat(chatId: Identifier) {
+        val (chat, _) = activeChats.value.items.first { it.chat.id == chatId }
+        _activeChats.update {
+            it.copy(items = it.items.filter { preview -> preview.chat.id != chatId })
+        }
+        _archivedChats.update {
+            it.copy(items = it.items + ChatPreview(chat, emptyList()))
+        }
+        interactor.setArchivationChat(chat, true)
+    }
+
+    override suspend fun unarchiveChat(chatId: Identifier) {
+        val (chat, _) = archivedChats.value.items.first { it.chat.id == chatId }
+        _archivedChats.update {
+            it.copy(items = it.items.filter { preview -> preview.chat.id != chatId })
+        }
+        _activeChats.update {
+            it.copy(items = it.items + ChatPreview(chat, emptyList()))
+        }
+        interactor.setArchivationChat(chat, false)
+    }
+
+    override suspend fun startNewChat() {
+        val chat = interactor.createChat("New chat v2", "some description", "Topic title v2")
+        val topic = chat.headTopic
+        _activeChats.update {
+            it.copy(items = it.items + ChatPreview(chat, listOf(topic)))
+        }
+        select(chat.id, topic.id)
+    }
+
+    private suspend fun loadChats(isArchived: Boolean) {
         val stateFlow = if (isArchived) _archivedChats else _activeChats
-        val currentState = stateFlow.value
+        val current = stateFlow.value
+        if (!current.hasNext || current.isLoadingNext) return
 
-        if (isNext && (!currentState.hasNext || currentState.isLoadingNext)) return
-        if (!isNext && (!currentState.hasPrev || currentState.isLoadingPrev)) return
-
-        stateFlow.update { it.copy(isLoadingNext = isNext, isLoadingPrev = !isNext) }
-
+        stateFlow.update { it.copy(isLoadingNext = true) }
         try {
-            val cursor = if (isNext) {
-                currentState.items.lastOrNull()?.chat?.createdAt ?: LocalDateTime.now()
-            } else {
-                currentState.items.firstOrNull()?.chat?.createdAt ?: LocalDateTime.now()
-            }
-
+            val before = current.items.lastOrNull()?.chat?.createdAt ?: LocalDateTime.now()
             val chats = if (isArchived) {
-                interactor.getArchivedChats(limit = PAGINATION_LIMIT, before = cursor)
+                interactor.getArchivedChats(limit = LIMIT, before = before)
             } else {
-                interactor.getActiveChats(limit = PAGINATION_LIMIT, before = cursor)
+                interactor.getActiveChats(limit = LIMIT, before = before)
             }
 
             val previews = chats.map { chat ->
                 ChatPreview(chat, interactor.getTopics(chat.id, limit = 5))
             }
 
-            stateFlow.update { state ->
-                if (isNext) {
-                    state.copy(
-                        items = state.items + previews,
-                        hasNext = previews.size == PAGINATION_LIMIT,
-                        isLoadingNext = false
-                    )
-                } else {
-                    state.copy(isLoadingPrev = false)
-                }
+            stateFlow.update {
+                it.copy(
+                    items = it.items + previews,
+                    hasNext = chats.size >= LIMIT,
+                    isLoadingNext = false
+                )
             }
         } catch (e: Exception) {
-            stateFlow.update { it.copy(isLoadingNext = false, isLoadingPrev = false) }
+            stateFlow.update { it.copy(isLoadingNext = false) }
         }
     }
 
-    private fun updateMessages(topic: Topic, message: MessageInference) {
-        _messages.update { current ->
-            val topicMessages = current[topic] ?: emptyList()
-            val existingIndex = topicMessages.indexOfFirst { it.id == message.id }
-            val newList = if (existingIndex != -1) {
-                topicMessages.toMutableList().apply { set(existingIndex, message) }
-            } else {
-                (topicMessages + message).sortedBy { it.createdAt }
-            }
-            (current + (topic to newList)).toList().sortedBy { it.first.createdAt }.toMap()
-        }
-    }
+    override fun loadTopics(chat: Chat): TopicProvider = TopicProviderImpl(chat)
 
-    private inner class TopicProviderImpl(
-        private val chat: Chat,
-    ) : TopicProvider {
+    override fun getMessageProvider(
+        chatId: Identifier,
+        initialTopicId: Identifier
+    ): MessageProvider =
+        MessageProviderImpl(chatId, initialTopicId)
+
+    private inner class TopicProviderImpl(private val chat: Chat) : TopicProvider {
         private val _topics = MutableStateFlow<TopicsPaginationState?>(null)
         override val topics: StateFlow<TopicsPaginationState?> = _topics.asStateFlow()
 
         override suspend fun loadNext() {
-            val currentState = _topics.value ?: TopicsPaginationState()
-            if (!currentState.hasNext || currentState.isLoadingNext) return
+            val current = _topics.value ?: TopicsPaginationState()
+            if (!current.hasNext || current.isLoadingNext) return
 
-            _topics.value = currentState.copy(isLoadingNext = true)
+            _topics.update {
+                it?.copy(isLoadingNext = true) ?: TopicsPaginationState(isLoadingNext = true)
+            }
 
-            val before = currentState.items.lastOrNull()?.createdAt ?: LocalDateTime.now()
-            val newTopics = interactor.getTopics(chat.id, limit = PAGINATION_LIMIT, before = before)
-
-            _topics.value = currentState.copy(
-                items = currentState.items + newTopics,
-                hasNext = newTopics.size == PAGINATION_LIMIT,
-                isLoadingNext = false
-            )
+            try {
+                val before = current.items.lastOrNull()?.createdAt ?: LocalDateTime.now()
+                val newTopics = interactor.getTopics(chat.id, limit = LIMIT, before = before)
+                _topics.update {
+                    it?.copy(
+                        items = it.items + newTopics,
+                        hasNext = newTopics.size >= LIMIT,
+                        isLoadingNext = false
+                    ) ?: TopicsPaginationState(
+                        items = newTopics,
+                        hasNext = newTopics.size >= LIMIT,
+                        isLoadingNext = false
+                    )
+                }
+            } catch (e: Exception) {
+                _topics.update { it?.copy(isLoadingNext = false) }
+            }
         }
 
         override suspend fun loadPrevious() {
-            // Не реализовано в интеракторе
+            // Not supported
         }
 
         override suspend fun select(topic: Topic?) {
             if (topic != null) {
-                this@ChatOrchestratorImpl.select(chat to topic)
-            } else {
-                _selectedTopic.value = null
+                this@ChatOrchestratorImpl.select(chat.id, topic.id)
             }
         }
     }
 
+    private inner class MessageProviderImpl(
+        private val chatId: Identifier,
+        initialTopicId: Identifier
+    ) : MessageProvider {
+        private val _messages = MutableStateFlow<Map<Topic, List<MessageInference>>>(emptyMap())
+        override val messages: StateFlow<Map<Topic, List<MessageInference>>> =
+            _messages.asStateFlow()
+
+        private val _currentTopic = MutableStateFlow<Topic?>(null)
+        override val currentTopic: StateFlow<Topic?> = _currentTopic.asStateFlow()
+
+        private var currentTopicId: Identifier = initialTopicId
+
+        override suspend fun sendMessage(message: MessageInference.HumanMessage) {
+            val currentTopic =
+                _activeChats.value.items
+                    .first { it.chat.id == chatId }.firstTopics
+                    .first { it.id == currentTopicId }
+
+            updateLocalMessages(currentTopic, message)
+
+            val context = _messages.value[currentTopic] ?: emptyList()
+
+            interactor.sendMessage(currentTopic, context, message).collect { updatedMessage ->
+                updateLocalMessages(currentTopic, updatedMessage)
+            }
+        }
+
+        private fun updateLocalMessages(topic: Topic, message: MessageInference) {
+            _messages.update { current ->
+                val topicMessages = current[topic] ?: emptyList()
+                val index = topicMessages.indexOfFirst { it.id == message.id }
+                val newList = if (index >= 0) {
+                    topicMessages.toMutableList().apply { set(index, message) }
+                } else {
+                    (topicMessages + message).sortedBy { it.createdAt }
+                }
+                current + (topic to newList)
+            }
+        }
+
+        override suspend fun loadNextMessages() {
+            // Not supported
+        }
+
+        override suspend fun loadPreviousMessages() {
+            val currentMessagesMap = _messages.value
+            val oldestTopic = currentMessagesMap.keys.minByOrNull { it.createdAt }
+
+            val topicIdToLoad = oldestTopic?.id ?: currentTopicId
+            val before = currentMessagesMap[oldestTopic]?.firstOrNull()?.createdAt
+                ?: oldestTopic?.createdAt
+                ?: LocalDateTime.now()
+
+            val result = interactor.getMessages(topicIdToLoad, limit = LIMIT, before = before)
+            _messages.update { current ->
+                val merged = current.toMutableMap()
+                result.forEach { (t, msgs) ->
+                    val existing = merged[t] ?: emptyList()
+                    merged[t] = (msgs + existing).distinctBy { it.id }.sortedBy { it.createdAt }
+                    if (t.id == currentTopicId && _currentTopic.value == null) {
+                        _currentTopic.value = t
+                    }
+                }
+                merged
+            }
+        }
+
+        override suspend fun deleteMessage(messageId: Identifier) {
+            interactor.deleteMessage(messageId)
+            _messages.update { current ->
+                current.mapValues { (_, msgs) -> msgs.filter { it.id != messageId } }
+            }
+        }
+
+        override suspend fun setCurrentTopic(topic: Topic) {
+            currentTopicId = topic.id
+            _currentTopic.value = topic
+            // If we don't have messages for this topic, load them
+            if (!_messages.value.containsKey(topic)) {
+                val initialMessages = interactor.getMessages(topic.id, limit = LIMIT)
+                _messages.update { it + initialMessages }
+            }
+        }
+
+        override suspend fun startNewTopic() {
+            TODO()
+        }
+    }
+
     companion object {
-        private const val PAGINATION_LIMIT = 50
+        private const val LIMIT = 20
     }
 }

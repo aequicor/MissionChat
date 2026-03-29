@@ -34,10 +34,9 @@ import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract.Intent
 @Composable
 fun InputSectionContent(
     component: ChatInputComponent,
-    isGenerating: Boolean,
 ) {
     val state by component.store.subscribeAsUiState { it.toUI() }
-
+    val isGenerating = state.isGenerating
     Row(
         Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -67,7 +66,7 @@ fun InputSectionContent(
                         if (it.isShiftPressed) {
                             false
                         } else {
-                            if (isGenerating) {
+                            if (state.isGenerating) {
                                 component.store.intent(Intent.StopGeneration)
                             } else if (state.inputValue.isNotBlank()) {
                                 component.store.intent(Intent.ClickOnSendMessage)

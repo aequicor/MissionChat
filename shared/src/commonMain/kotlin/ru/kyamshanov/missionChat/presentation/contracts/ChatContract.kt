@@ -5,7 +5,6 @@ import pro.respawn.flowmvi.api.MVIAction
 import pro.respawn.flowmvi.api.MVIIntent
 import pro.respawn.flowmvi.api.MVIState
 import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
-import ru.kyamshanov.missionChat.presentation.models.MessagePresentationModel
 import ru.kyamshanov.missionChat.presentation.models.TopicUiModel
 
 object ChatContract {
@@ -18,7 +17,10 @@ object ChatContract {
 
     sealed interface Intent : MVIIntent {
 
-        data class DeleteMessage(val message: MessagePresentationModel) : Intent
+        data class DeleteMessage(
+            val topicId: ru.kyamshanov.missionChat.presentation.models.UiID,
+            val messageId: ru.kyamshanov.missionChat.presentation.models.UiID,
+        ) : Intent
 
         data object LoadPreviousMessages : Intent
 
@@ -27,7 +29,7 @@ object ChatContract {
 
     internal sealed interface InternalIntent : Intent {
 
-        data class InsertMessage(val msg: MessagePresentationModel) : InternalIntent
+        data object StopGeneration : InternalIntent
     }
 
     sealed interface Action : MVIAction

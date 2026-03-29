@@ -1,57 +1,68 @@
-@file:OptIn(ExperimentalUuidApi::class)
-
 package ru.kyamshanov.missionChat.presentation.components.impl
 
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.essenty.lifecycle.coroutines.coroutineScope
-import pro.respawn.flowmvi.api.PipelineContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDateTime
 import pro.respawn.flowmvi.api.Store
 import pro.respawn.flowmvi.dsl.store
+import pro.respawn.flowmvi.plugins.init
 import pro.respawn.flowmvi.plugins.reduce
-import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractor
-import ru.kyamshanov.missionChat.domain.models.Chat
+import ru.kyamshanov.missionChat.domain.interactors.MessageProvider
 import ru.kyamshanov.missionChat.domain.models.Identifier
-import ru.kyamshanov.missionChat.domain.models.Topic
+import ru.kyamshanov.missionChat.domain.models.Interlocutor
+import ru.kyamshanov.missionChat.domain.models.MessageInference
+import ru.kyamshanov.missionChat.domain.utils.now
 import ru.kyamshanov.missionChat.presentation.components.ChatComponent
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract.Action
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract.Intent
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract.InternalIntent
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract.State
-import ru.kyamshanov.missionChat.presentation.models.ChatTopicModel
-import ru.kyamshanov.missionChat.presentation.models.TopicUiModel
-import ru.kyamshanov.missionChat.presentation.models.toUiID
+import ru.kyamshanov.missionChat.presentation.models.toIdentifier
 import ru.kyamshanov.missionChat.utils.toTopics
-import kotlin.uuid.ExperimentalUuidApi
-
-private typealias Ctx = PipelineContext<State, Intent, Action>
+import ru.kyamshanov.missionChat.utils.toUI
 
 internal class DefaultChatComponent(
     componentContext: ComponentContext,
-    private val userChatInteractor: UserChatInteractor,
-    private val chat: Chat,
-    private val openedTopic: Topic,
+    private val messageProvider: MessageProvider,
+    private val messagesQueue: SharedFlow<String>,
+    private val startNewTopic: SharedFlow<Unit>,
+    private val onMessageSent: (Result<Unit>) -> Unit,
 ) : ChatComponent, ComponentContext by componentContext {
 
+    private var exchangeJob: Job? = null
     override val store: Store<State, Intent, Action> = store(
-        initial = State(
-            topics = listOf(
-                ChatTopicModel(
-                    topic = TopicUiModel(
-                        id = openedTopic.id.toUiID(),
-                        title = openedTopic.title
-                    ),
-                    messages = emptyList()
-                )
-            ),
-            currentTopic = TopicUiModel(
-                id = openedTopic.id.toUiID(),
-                title = openedTopic.title
-            )
-        ),
+        initial = State(topics = emptyList()),
         scope = coroutineScope()
     ) {
         configure {
             name = "ChatComponent"
+        }
+
+        init {
+            launch { messageProvider.loadPreviousMessages() }
+            launch {
+                messageProvider.messages.collect {
+                    updateState { copy(topics = it.toTopics()) }
+                }
+            }
+            launch {
+                messageProvider.currentTopic.collect {
+                    updateState { copy(currentTopic = it?.toUI()) }
+                }
+            }
+            launch {
+                messagesQueue.collect {
+                    onInsertMessage(it)
+                }
+            }
+            launch {
+                startNewTopic.collect {
+                    messageProvider
+                }
+            }
         }
 
         reduce { intent ->
@@ -59,43 +70,39 @@ internal class DefaultChatComponent(
                 is Intent.DeleteMessage -> onDeleteMessage(intent)
                 Intent.LoadNextMessages -> onLoadNextMessages()
                 Intent.LoadPreviousMessages -> onLoadPreviousMessages()
-                is InternalIntent.InsertMessage -> onInsertMessage(intent)
+                InternalIntent.StopGeneration -> exchangeJob?.cancel()
             }
         }
     }
 
-    private suspend fun Ctx.onDeleteMessage(intent: Intent.DeleteMessage) {
-        userChatInteractor.deleteMessage(Identifier.fromString(intent.message.id))
-        updateState {
-            copy(topics = topics.map { topicModel ->
-                topicModel.copy(messages = topicModel.messages.filter { it.id != intent.message.id })
-            })
-        }
+    private suspend fun onDeleteMessage(intent: Intent.DeleteMessage) {
+        messageProvider.deleteMessage(intent.messageId.toIdentifier())
     }
 
-    private suspend fun Ctx.onLoadPreviousMessages() {
-        val topicId = openedTopic.id
-        val messagesMap = userChatInteractor.getMessages(topicId = topicId)
-        val newTopics = messagesMap.toTopics()
-        updateState {
-            copy(topics = newTopics)
-        }
+    private suspend fun onLoadPreviousMessages() {
+        messageProvider.loadPreviousMessages()
     }
 
-    private suspend fun Ctx.onLoadNextMessages() {
-        // TODO: Implement next messages loading
+    private suspend fun onLoadNextMessages() {
+        messageProvider.loadNextMessages()
     }
 
-    private suspend fun Ctx.onInsertMessage(intent: InternalIntent.InsertMessage) {
-        updateState {
-            val updatedTopics = topics.map { topicModel ->
-                if (topicModel.topic.id == currentTopic?.id) {
-                    topicModel.copy(messages = topicModel.messages + intent.msg)
-                } else {
-                    topicModel
+    private suspend fun onInsertMessage(message: String) {
+        kotlinx.coroutines.coroutineScope {
+            exchangeJob = launch {
+                try {
+                    val humanMessage = MessageInference.HumanMessage(
+                        id = Identifier.new(),
+                        text = message,
+                        createdAt = LocalDateTime.now(),
+                        human = Interlocutor.Human(name = "User"),
+                    )
+                    messageProvider.sendMessage(humanMessage)
+                    onMessageSent(Result.success(Unit))
+                } catch (e: Exception) {
+                    onMessageSent(Result.failure(e))
                 }
             }
-            copy(topics = updatedTopics)
         }
     }
 }

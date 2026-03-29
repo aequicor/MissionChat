@@ -8,154 +8,154 @@ import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.lifecycle.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.zip
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import pro.respawn.flowmvi.dsl.subscribe
-import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractor
+import ru.kyamshanov.missionChat.domain.interactors.ChatOrchestrator
 import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
-import ru.kyamshanov.missionChat.presentation.components.MessagesComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent
-import ru.kyamshanov.missionChat.presentation.components.internal.ChatOrchestratorComponent
+import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent.ChatContainer
 import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
-import ru.kyamshanov.missionChat.presentation.contracts.ChatOrchestratorContract
-import ru.kyamshanov.missionChat.presentation.contracts.MessagesIntent
+import ru.kyamshanov.missionChat.presentation.contracts.ChatContract
+import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract.InternalIntent
 import ru.kyamshanov.missionChat.utils.ChatInputParams
-import ru.kyamshanov.missionChat.utils.ChatOrchestratorParams
 import ru.kyamshanov.missionChat.utils.ComponentFactory
 import ru.kyamshanov.missionChat.utils.IdentifierSerializer
-import ru.kyamshanov.missionChat.utils.MessagesParams
 import ru.kyamshanov.missionChat.utils.SidebarParams
 
 internal class DefaultWelcomeScreenComponent(
     componentContext: ComponentContext,
-    private val componentFactory: ComponentFactory,
-    private val userChatInteractor: UserChatInteractor,
+    componentFactory: ComponentFactory,
+    private val chatOrchestrator: ChatOrchestrator,
 ) : WelcomeScreenComponent, ComponentContext by componentContext {
 
     private val coroutineScope = coroutineScope()
-
-    private val chatNav = StackNavigation<ChatConfig>()
-    private val currentChatComponent: MessagesComponent
-        get() = chatContainer.value.active.instance.component
-
-    private val chatOrchestratorComponent: ChatOrchestratorComponent =
-        componentFactory.createChatOrchestratorComponent(
-        params = ChatOrchestratorParams(
-            componentContext = childContext("chatOrchestrator"),
-        )
-    )
+    private val sendMessageQueue = MutableSharedFlow<String>()
 
     override val sidebarComponent: InternalSidebarComponent =
         componentFactory.createSidebarComponent(
             SidebarParams(
                 componentContext = childContext("sidebar"),
                 onSelectedCallback = { chatId, topicId ->
-                    chatOrchestratorComponent.store.intent(
-                        ChatOrchestratorContract.Intent.SelectTopic(
-                            chatId = chatId,
-                            topicId = topicId
-                        )
-                    )
+                    coroutineScope.launch {
+                        chatOrchestrator.select(chatId, topicId)
+                    }
                 },
                 onArchiveChat = { chatId ->
-                    chatOrchestratorComponent.store.intent(
-                        ChatOrchestratorContract.Intent.ArchiveChat(chatId)
-                    )
+                    coroutineScope.launch {
+                        chatOrchestrator.archiveChat(chatId)
+                    }
                 },
                 onUnarchiveChat = { chatId ->
-                    chatOrchestratorComponent.store.intent(
-                        ChatOrchestratorContract.Intent.UnarchiveChat(chatId)
-                    )
+                    coroutineScope.launch {
+                        chatOrchestrator.unarchiveChat(chatId)
+                    }
                 }
             )
         )
 
+    private val chatNav = StackNavigation<ChatConfig>()
+
+    override val chatContainer: Value<ChildStack<*, ChatContainer>> =
+        childStack(
+            source = chatNav,
+            serializer = ChatConfig.serializer(),
+            initialConfiguration = ChatConfig.None,
+            handleBackButton = false,
+            childFactory = ::createChatChild,
+        )
+
+    private fun createChatChild(
+        config: ChatConfig,
+        componentContext: ComponentContext
+    ): ChatContainer = when (config) {
+        ChatConfig.None -> ChatContainer.DummyChat(
+            component = DefaultDummyChatComponent(componentContext)
+        )
+
+        is ChatConfig.Selected -> {
+            val messageProvider = chatOrchestrator.getMessageProvider(config.chatId, config.topicId)
+            ChatContainer.Chat(
+                component = DefaultChatComponent(
+                    componentContext = componentContext,
+                    messageProvider = messageProvider,
+                    messagesQueue = sendMessageQueue.asSharedFlow(),
+                    onMessageSent = {
+                        chatInputComponent.store.intent(InternalIntent.OnFinishGeneration)
+                    },
+                    startNewTopic = MutableSharedFlow()
+                )
+            )
+
+        }
+    }
 
     init {
-        var lastState: ChatOrchestratorContract.State? = null
-        coroutineScope.subscribe(
-            chatOrchestratorComponent.store,
-            consume = { action ->
-                when (action) {
-                    is ChatOrchestratorContract.Action.NavigateToTopic -> {
-                        chatNav.replaceAll(
-                            ChatConfig(
-                                chatId = action.chat.id,
-                                topicId = action.topic.id
-                            )
-                        )
-                    }
+        with(chatOrchestrator) {
+            combine(activeChats, archivedChats) { active, archive ->
+                val activeMap = active.items.associate { it.chat to it.firstTopics }
+                val archiveMap = archive.items.associate { it.chat to it.firstTopics }
+                sidebarComponent.updateChats(activeMap, archiveMap)
+            }.launchIn(coroutineScope)
+
+            selectedChat.onEach { chat ->
+                sidebarComponent.selectChat(chat)
+            }.launchIn(coroutineScope)
+
+            selectedTopic.zip(selectedChat) { topic, _ ->
+                val newScreen = if (topic == null) {
+                    ChatConfig.None
+                } else {
+                    ChatConfig.Selected(topic.chatId, topic.id)
                 }
-            },
-            render = { state ->
-                sidebarComponent.updateChats(state.activeChats, state.archivedChats)
-                val selectedTopic = state.selectedTopic
-                if (lastState?.selectedTopic != selectedTopic) {
-                    sidebarComponent.selectTopic(state.selectedTopic)
-                    chatNav.replaceAll(
-                        ChatConfig(
-                            chatId = selectedTopic?.first?.id,
-                            topicId = selectedTopic?.second?.id,
-                        )
-                    )
-                }
-                lastState = state
-            }
-        )
+                chatNav.replaceAll(newScreen)
+            }.launchIn(coroutineScope)
+
+            coroutineScope.launch { loadNextArchiveChat() }
+            coroutineScope.launch { loadNextActiveChat() }
+        }
     }
 
     override val chatInputComponent: ChatInputComponent = componentFactory.createChatInputComponent(
         ChatInputParams(
             componentContext = childContext("chatInput"),
             onSendMessage = { message ->
-                currentChatComponent.intent(MessagesIntent.SendNewMessage(message))
-                true
-            },
-            onStartNewTopic = {
-                chatOrchestratorComponent.store.intent(ChatOrchestratorContract.Intent.CreateNewTopic)
+                coroutineScope.launch {
+                    (chatContainer.value.active.instance as? ChatContainer.DummyChat)?.also {
+                        chatOrchestrator.startNewChat()
+                    }
+                    sendMessageQueue.emit(message)
+                }
             },
             onStopGeneration = {
-                currentChatComponent.intent(MessagesIntent.StopGeneration)
-                true
+                val activeInstance = chatContainer.value.active.instance
+                if (activeInstance is ChatContainer.Chat) {
+                    activeInstance.component.store.intent(ChatContract.InternalIntent.StopGeneration)
+                    true
+                } else {
+                    false
+                }
+            },
+            onStartNewTopic = {
+                //chatOrchestrator.
             })
     )
 
-
-    override val chatContainer: Value<ChildStack<*, WelcomeScreenComponent.MessagesChat>> =
-        childStack(
-            key = "ChatContainerStack",
-            source = chatNav,
-            serializer = ChatConfig.serializer(),
-            initialConfiguration = ChatConfig(null, null),
-            handleBackButton = false,
-            childFactory = ::chatChild,
-        )
-
-
-    private fun chatChild(
-        config: ChatConfig, componentContext: ComponentContext
-    ): WelcomeScreenComponent.MessagesChat =
-        WelcomeScreenComponent.MessagesChat(
-            component = componentFactory.createMessagesComponent(
-                MessagesParams(
-                    chat = config,
-                    topic = it?.second,
-                    componentContext = componentContext,
-                    onChatCreated = {
-
-                    },
-                )
-            )
-        )
-
     @Serializable
-    private data class ChatConfig(
-        @Serializable(with = IdentifierSerializer::class) val chatId: Identifier?,
-    ) {
+    private sealed interface ChatConfig {
+        @Serializable
+        data object None : ChatConfig
 
-        init {
-            require(!(chatId == null && topicId != null)) { "Topic cannot exist without a chat" }
-        }
+        @Serializable
+        data class Selected(
+            @Serializable(with = IdentifierSerializer::class) val chatId: Identifier,
+            @Serializable(with = IdentifierSerializer::class) val topicId: Identifier,
+        ) : ChatConfig
     }
-
 }

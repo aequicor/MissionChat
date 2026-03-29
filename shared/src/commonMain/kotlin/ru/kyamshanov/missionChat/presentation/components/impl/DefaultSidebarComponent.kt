@@ -37,26 +37,10 @@ class DefaultSidebarComponent(
 
     override fun archiveChat(chat: ChatUiModel) {
         onArchiveChat(chat.id.toIdentifier())
-        _state.update {
-            it.copy(
-                activeChats = it.activeChats - chat,
-                archivedChats = it.archivedChats + chat,
-            )
-        }
     }
 
     override fun unarchiveChat(chat: ChatUiModel) {
         onUnarchiveChat(chat.id.toIdentifier())
-        _state.update {
-            it.copy(
-                activeChats = it.activeChats + chat,
-                archivedChats = it.archivedChats - chat,
-            )
-        }
-    }
-
-    override fun deleteChat(chat: ChatUiModel) {
-        TODO("Not yet implemented")
     }
 
     override fun updateChats(
@@ -71,17 +55,47 @@ class DefaultSidebarComponent(
         }
     }
 
+    override fun selectChat(chat: Chat?) {
+        _state.update { state ->
+            if (chat == null) {
+                state.copy(selectedChat = null, selectedTopic = null)
+            } else {
+                val chatUi = state.activeChats.find { it.id == chat.id.toUiID() }
+                    ?: state.archivedChats.find { it.id == chat.id.toUiID() }
+
+                val firstTopic = chatUi?.topics?.firstOrNull()
+                if (chatUi != null && firstTopic != null) {
+                    state.copy(selectedChat = chatUi, selectedTopic = firstTopic)
+                } else {
+                    state.copy(selectedChat = null, selectedTopic = null)
+                }
+            }
+        }
+    }
+
     override fun addTopic(topic: Pair<Chat, Topic>) {
         _state.update { value ->
-            val (addTopicIn, topic) = topic
-            val chatIndex = value.activeChats.indexOfFirst { it.id == addTopicIn.id.toUiID() }
-            val chat = value.activeChats[chatIndex]
-            val updatedTopics = chat.topics + topic.toUI()
-            val updatedChat = chat.copy(topics = updatedTopics)
-            value.copy(
-                archivedChats = value.activeChats.toMutableList()
-                    .also { it[chatIndex] = updatedChat }
-            )
+            val (domainChat, domainTopic) = topic
+            val activeIndex = value.activeChats.indexOfFirst { it.id == domainChat.id.toUiID() }
+            if (activeIndex != -1) {
+                val chat = value.activeChats[activeIndex]
+                val updatedChat = chat.copy(topics = chat.topics + domainTopic.toUI())
+                value.copy(
+                    activeChats = value.activeChats.toMutableList()
+                        .apply { set(activeIndex, updatedChat) }
+                )
+            } else {
+                val archivedIndex =
+                    value.archivedChats.indexOfFirst { it.id == domainChat.id.toUiID() }
+                if (archivedIndex != -1) {
+                    val chat = value.archivedChats[archivedIndex]
+                    val updatedChat = chat.copy(topics = chat.topics + domainTopic.toUI())
+                    value.copy(
+                        archivedChats = value.archivedChats.toMutableList()
+                            .apply { set(archivedIndex, updatedChat) }
+                    )
+                } else value
+            }
         }
     }
 
@@ -90,10 +104,17 @@ class DefaultSidebarComponent(
             if (topic == null) {
                 value.copy(selectedChat = null, selectedTopic = null)
             } else {
-                val (c, t) = topic
-                val chat = value.activeChats.first { it.id == c.id.toUiID() }
-                val topic = chat.topics.first { it.id == t.id.toUiID() }
-                value.copy(selectedChat = chat, selectedTopic = topic)
+                val (domainChat, domainTopic) = topic
+                val chatUi = value.activeChats.find { it.id == domainChat.id.toUiID() }
+                    ?: value.archivedChats.find { it.id == domainChat.id.toUiID() }
+
+                val topicUi = chatUi?.topics?.find { it.id == domainTopic.id.toUiID() }
+
+                if (chatUi != null && topicUi != null) {
+                    value.copy(selectedChat = chatUi, selectedTopic = topicUi)
+                } else {
+                    value.copy(selectedChat = null, selectedTopic = null)
+                }
             }
         }
     }

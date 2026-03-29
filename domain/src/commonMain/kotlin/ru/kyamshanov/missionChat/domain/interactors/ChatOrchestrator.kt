@@ -1,8 +1,6 @@
 package ru.kyamshanov.missionChat.domain.interactors
 
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-
 import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.ChatsPaginationState
 import ru.kyamshanov.missionChat.domain.models.Identifier
@@ -17,15 +15,21 @@ interface ChatListProvider {
     val selectedChat: StateFlow<Chat?>
     val selectedTopic: StateFlow<Topic?>
 
+    suspend fun loadNextActiveChat()
+    suspend fun loadPreviousActiveChat()
+
     suspend fun loadNextArchiveChat()
-    suspend fun loadNextUnarchiveChat()
 
     suspend fun loadPreviousArchiveChat()
-    suspend fun loaPreviousUnarchiveChat()
 
-    suspend fun select(topic: Pair<Chat, Topic>)
+    suspend fun select(chatId: Identifier, topicId: Identifier)
 
-    suspend fun loadTopics(chat: Chat): TopicProvider
+    suspend fun archiveChat(chatId: Identifier)
+    suspend fun unarchiveChat(chatId: Identifier)
+
+    suspend fun startNewChat()
+
+    fun getMessageProvider(chatId: Identifier, initialTopicId: Identifier): MessageProvider
 }
 
 /**
@@ -47,9 +51,9 @@ interface TopicProvider {
 interface MessageProvider {
     val messages: StateFlow<Map<Topic, List<MessageInference>>>
 
-    fun sendMessage(
-        message: MessageInference.HumanMessage
-    ): Flow<MessageInference>
+    val currentTopic: StateFlow<Topic?>
+
+    suspend fun sendMessage(message: MessageInference.HumanMessage)
 
     suspend fun loadNextMessages()
     suspend fun loadPreviousMessages()
@@ -57,9 +61,14 @@ interface MessageProvider {
     suspend fun deleteMessage(messageId: Identifier)
 
     suspend fun setCurrentTopic(topic: Topic)
+
+    suspend fun startNewTopic()
 }
 
 /**
  * Общий оркестратор, объединяющий функциональность по SOLID (Interface Segregation).
  */
-interface ChatOrchestrator : ChatListProvider, MessageProvider
+interface ChatOrchestrator : ChatListProvider {
+
+    fun loadTopics(chat: Chat): TopicProvider
+}

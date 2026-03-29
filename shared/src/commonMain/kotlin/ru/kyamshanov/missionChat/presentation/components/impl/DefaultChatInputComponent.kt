@@ -15,7 +15,7 @@ import ru.kyamshanov.missionChat.utils.empty
 
 internal class DefaultChatInputComponent(
     componentContext: ComponentContext,
-    private val onSendMessage: (String) -> Boolean,
+    private val onSendMessage: (String) -> Unit,
     private val onStopGeneration: () -> Boolean,
     private val onStartNewTopic: () -> Unit,
 ) : InternalChatInputComponent, ComponentContext by componentContext {
@@ -42,9 +42,8 @@ internal class DefaultChatInputComponent(
                 is Intent.ClickOnSendMessage -> {
                     withState {
                         if (isGenerating) return@withState
-                        if (onSendMessage(inputValue)) {
-                            updateStateImmediate { copy(inputValue = String.empty) }
-                        }
+                        onSendMessage(inputValue)
+                        updateStateImmediate { copy(inputValue = String.empty) }
                     }
                 }
 
