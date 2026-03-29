@@ -7,7 +7,11 @@ import ru.kyamshanov.missionChat.data.database.AppDatabase
 import ru.kyamshanov.missionChat.data.database.entities.ChatEntity
 import ru.kyamshanov.missionChat.data.database.entities.MessageEntity
 import ru.kyamshanov.missionChat.data.database.entities.TopicEntity
-import ru.kyamshanov.missionChat.domain.models.*
+import ru.kyamshanov.missionChat.domain.models.Chat
+import ru.kyamshanov.missionChat.domain.models.Identifier
+import ru.kyamshanov.missionChat.domain.models.Interlocutor
+import ru.kyamshanov.missionChat.domain.models.MessageInference
+import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.domain.repositories.ChatRepository
 import ru.kyamshanov.missionChat.domain.utils.now
 
@@ -225,6 +229,7 @@ internal class RoomChatRepository(
 
     private fun TopicEntity.toDomain() = Topic(
         id = id,
+        chatId = chatId,
         title = title,
         createdAt = createdAt,
         updatedAt = updatedAt

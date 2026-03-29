@@ -1,9 +1,11 @@
 package ru.kyamshanov.missionChat.di
 
 import io.github.aakira.napier.Napier
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.logging.*
-import io.ktor.serialization.kotlinx.json.*
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.dsl.module
 import ru.kyamshanov.missionChat.data.database.AppDatabase
@@ -11,6 +13,8 @@ import ru.kyamshanov.missionChat.data.database.createDatabase
 import ru.kyamshanov.missionChat.data.network.DeepseekApi
 import ru.kyamshanov.missionChat.data.network.DeepseekApiImpl
 import ru.kyamshanov.missionChat.data.repositories.RoomChatRepository
+import ru.kyamshanov.missionChat.domain.interactors.ChatOrchestrator
+import ru.kyamshanov.missionChat.domain.interactors.ChatOrchestratorImpl
 import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractor
 import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractorImpl
 import ru.kyamshanov.missionChat.domain.repositories.ChatRepository
@@ -49,4 +53,5 @@ val DomainDiModule = module {
     factory<DeepseekApi> { DeepseekApiImpl(get(), get()) }
     single<ChatRepository> { RoomChatRepository(get()) }
     single<UserChatInteractor> { UserChatInteractorImpl(get(), get()) }
+    single<ChatOrchestrator> { ChatOrchestratorImpl(get()) }
 }
