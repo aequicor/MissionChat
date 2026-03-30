@@ -27,6 +27,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import ru.kyamshanov.missionChat.models.subscribeAsUiState
 import ru.kyamshanov.missionChat.models.toUI
+import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
 import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract.Intent
 
 

@@ -5,6 +5,7 @@ import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent
 import ru.kyamshanov.missionChat.presentation.components.impl.DefaultChatInputComponent
 import ru.kyamshanov.missionChat.presentation.components.impl.DefaultSidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.impl.DefaultWelcomeScreenComponent
+import ru.kyamshanov.missionChat.presentation.components.internal.InternalChatInputComponent
 import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.factories.KoinRootComponentFactory
 import ru.kyamshanov.missionChat.presentation.factories.RootComponentFactory

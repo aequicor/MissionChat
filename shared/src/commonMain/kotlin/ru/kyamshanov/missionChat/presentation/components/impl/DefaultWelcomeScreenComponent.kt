@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import ru.kyamshanov.missionChat.domain.interactors.ChatOrchestrator
 import ru.kyamshanov.missionChat.domain.models.Identifier
+import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent.ChatContainer
 import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
