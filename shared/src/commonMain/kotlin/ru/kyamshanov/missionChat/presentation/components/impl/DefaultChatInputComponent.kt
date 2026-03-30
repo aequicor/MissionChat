@@ -6,7 +6,6 @@ import pro.respawn.flowmvi.dsl.store
 import pro.respawn.flowmvi.dsl.updateStateImmediate
 import pro.respawn.flowmvi.plugins.recover
 import pro.respawn.flowmvi.plugins.reduce
-import ru.kyamshanov.missionChat.presentation.components.internal.InternalChatInputComponent
 import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract
 import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract.Action
 import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract.Intent

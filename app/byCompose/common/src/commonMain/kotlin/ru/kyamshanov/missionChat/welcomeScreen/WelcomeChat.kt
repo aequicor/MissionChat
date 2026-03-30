@@ -53,7 +53,6 @@ import pro.respawn.flowmvi.compose.dsl.subscribe
 import ru.kyamshanov.missionChat.components.WindowScaffold
 import ru.kyamshanov.missionChat.components.glassmorphism
 import ru.kyamshanov.missionChat.presentation.components.ChatComponent
-import ru.kyamshanov.missionChat.presentation.components.ChatInputComponent
 import ru.kyamshanov.missionChat.presentation.components.SidebarComponent
 import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent.ChatContainer
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract
