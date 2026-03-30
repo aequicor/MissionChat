@@ -21,7 +21,7 @@ import ru.kyamshanov.missionChat.domain.utils.now
  * This repository handles data operations for chats, topics, and messages using the local Room database.
  * It maps database entities to domain models and vice versa.
  */
-internal class RoomChatRepository(
+internal class RoomChatsDataSource(
     private val database: AppDatabase
 ) : ChatRepository {
 

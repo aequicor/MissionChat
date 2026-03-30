@@ -45,6 +45,7 @@ import ru.kyamshanov.missionChat.presentation.models.UiID
 @Composable
 fun MessagesList(
     topics: List<ChatTopicModel>,
+    selectedTopicId: UiID?,
     onDelete: (topicId: UiID, messageId: UiID) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -57,6 +58,7 @@ fun MessagesList(
             topics = topics,
             listState = listState,
             totalItemsCount = totalItemsCount,
+            selectedTopicId = selectedTopicId,
             onDelete = onDelete
         )
     }
@@ -95,6 +97,7 @@ private fun MessagesListContent(
     topics: List<ChatTopicModel>,
     listState: LazyListState,
     totalItemsCount: Int,
+    selectedTopicId: UiID?,
     onDelete: (topicId: UiID, messageId: UiID) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -106,15 +109,21 @@ private fun MessagesListContent(
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
     ) {
         topics.forEachIndexed { topicIndex, topicModel ->
+            val isSelected = selectedTopicId == topicModel.topic.id
             stickyHeader(key = topicModel.topic.id) {
-                TopicHeader(topicModel.topic.title)
+                if (isSelected) {
+                    SelectedTopicHeader(topicModel.topic.title)
+                } else {
+                    TopicHeader(topicModel.topic.title)
+                }
             }
 
             itemsIndexed(
                 items = topicModel.messages,
                 key = { _, item -> item.id }
             ) { index, message ->
-                val isLastMessage = topicIndex == topics.lastIndex && index == topicModel.messages.lastIndex
+                val isLastMessage =
+                    topicIndex == topics.lastIndex && index == topicModel.messages.lastIndex
 
                 MessageItem(
                     message = message,
@@ -137,6 +146,19 @@ private fun TopicHeader(title: String?) {
     if (title.isNullOrBlank()) return
     Box(modifier = Modifier.fillMaxWidth()) {
         FloatingHeader(title, Modifier.align(Alignment.Center))
+    }
+}
+
+@Composable
+private fun SelectedTopicHeader(title: String?) {
+    if (title.isNullOrBlank()) return
+    Box(modifier = Modifier.fillMaxWidth()) {
+        FloatingHeader(
+            title = title,
+            modifier = Modifier.align(Alignment.Center),
+            backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     }
 }
 
@@ -187,18 +209,23 @@ private data class MessageStyle(
 )
 
 @Composable
-fun FloatingHeader(title: String, modifier: Modifier = Modifier) {
+fun FloatingHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+            .background(backgroundColor)
             .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         Text(
             text = title,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = contentColor
         )
     }
 }

@@ -69,6 +69,14 @@ kotlin {
 
         commonTest.dependencies {
             implementation(libs.koin.test)
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+        }
+        androidUnitTest.dependencies {
+            // Для мокирования контекста Android
+            implementation(libs.robolectric)
+            implementation(libs.androidx.test.core)
+            implementation(libs.androidx.test.junit)
         }
     }
 }
@@ -85,6 +93,11 @@ android {
     }
     buildFeatures {
         buildConfig = true
+    }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
     }
 }
 

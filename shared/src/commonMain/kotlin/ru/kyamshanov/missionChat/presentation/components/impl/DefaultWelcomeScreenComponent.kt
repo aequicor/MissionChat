@@ -11,8 +11,10 @@ import com.arkivanov.essenty.lifecycle.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.zip
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -24,6 +26,7 @@ import ru.kyamshanov.missionChat.presentation.components.WelcomeScreenComponent.
 import ru.kyamshanov.missionChat.presentation.components.internal.InternalSidebarComponent
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract
 import ru.kyamshanov.missionChat.presentation.contracts.ChatInputContract.InternalIntent
+import ru.kyamshanov.missionChat.presentation.models.WelcomeScreenEvent
 import ru.kyamshanov.missionChat.utils.ChatInputParams
 import ru.kyamshanov.missionChat.utils.ComponentFactory
 import ru.kyamshanov.missionChat.utils.IdentifierSerializer
@@ -36,7 +39,7 @@ internal class DefaultWelcomeScreenComponent(
 ) : WelcomeScreenComponent, ComponentContext by componentContext {
 
     private val coroutineScope = coroutineScope()
-    private val sendMessageQueue = MutableSharedFlow<String>()
+    private val eventBus = MutableSharedFlow<WelcomeScreenEvent>()
 
     override val sidebarComponent: InternalSidebarComponent =
         componentFactory.createSidebarComponent(
@@ -44,7 +47,7 @@ internal class DefaultWelcomeScreenComponent(
                 componentContext = childContext("sidebar"),
                 onSelectedCallback = { chatId, topicId ->
                     coroutineScope.launch {
-                        chatOrchestrator.select(chatId, topicId)
+                        chatNav.replaceAll(ChatConfig.Selected(chatId, topicId))
                     }
                 },
                 onArchiveChat = { chatId ->
@@ -85,11 +88,10 @@ internal class DefaultWelcomeScreenComponent(
                 component = DefaultChatComponent(
                     componentContext = componentContext,
                     messageProvider = messageProvider,
-                    messagesQueue = sendMessageQueue.asSharedFlow(),
+                    eventBus = eventBus.asSharedFlow(),
                     onMessageSent = {
                         chatInputComponent.store.intent(InternalIntent.OnFinishGeneration)
                     },
-                    startNewTopic = MutableSharedFlow()
                 )
             )
 
@@ -102,19 +104,6 @@ internal class DefaultWelcomeScreenComponent(
                 val activeMap = active.items.associate { it.chat to it.firstTopics }
                 val archiveMap = archive.items.associate { it.chat to it.firstTopics }
                 sidebarComponent.updateChats(activeMap, archiveMap)
-            }.launchIn(coroutineScope)
-
-            selectedChat.onEach { chat ->
-                sidebarComponent.selectChat(chat)
-            }.launchIn(coroutineScope)
-
-            selectedTopic.zip(selectedChat) { topic, _ ->
-                val newScreen = if (topic == null) {
-                    ChatConfig.None
-                } else {
-                    ChatConfig.Selected(topic.chatId, topic.id)
-                }
-                chatNav.replaceAll(newScreen)
             }.launchIn(coroutineScope)
 
             coroutineScope.launch { loadNextArchiveChat() }
@@ -130,7 +119,7 @@ internal class DefaultWelcomeScreenComponent(
                     (chatContainer.value.active.instance as? ChatContainer.DummyChat)?.also {
                         chatOrchestrator.startNewChat()
                     }
-                    sendMessageQueue.emit(message)
+                    eventBus.emit(WelcomeScreenEvent.SendMessage(message))
                 }
             },
             onStopGeneration = {
@@ -143,7 +132,9 @@ internal class DefaultWelcomeScreenComponent(
                 }
             },
             onStartNewTopic = {
-                //chatOrchestrator.
+                coroutineScope.launch {
+                    eventBus.emit(WelcomeScreenEvent.StartNewTopic)
+                }
             })
     )
 

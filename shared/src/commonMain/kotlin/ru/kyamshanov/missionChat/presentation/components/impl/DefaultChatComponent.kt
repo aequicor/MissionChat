@@ -20,6 +20,7 @@ import ru.kyamshanov.missionChat.presentation.contracts.ChatContract.Action
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract.Intent
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract.InternalIntent
 import ru.kyamshanov.missionChat.presentation.contracts.ChatContract.State
+import ru.kyamshanov.missionChat.presentation.models.WelcomeScreenEvent
 import ru.kyamshanov.missionChat.presentation.models.toIdentifier
 import ru.kyamshanov.missionChat.utils.toTopics
 import ru.kyamshanov.missionChat.utils.toUI
@@ -27,8 +28,7 @@ import ru.kyamshanov.missionChat.utils.toUI
 internal class DefaultChatComponent(
     componentContext: ComponentContext,
     private val messageProvider: MessageProvider,
-    private val messagesQueue: SharedFlow<String>,
-    private val startNewTopic: SharedFlow<Unit>,
+    private val eventBus: SharedFlow<WelcomeScreenEvent>,
     private val onMessageSent: (Result<Unit>) -> Unit,
 ) : ChatComponent, ComponentContext by componentContext {
 
@@ -50,17 +50,15 @@ internal class DefaultChatComponent(
             }
             launch {
                 messageProvider.currentTopic.collect {
-                    updateState { copy(currentTopic = it?.toUI()) }
+                    updateState { copy(currentTopic = it.toUI()) }
                 }
             }
             launch {
-                messagesQueue.collect {
-                    onInsertMessage(it)
-                }
-            }
-            launch {
-                startNewTopic.collect {
-                    messageProvider
+                eventBus.collect {
+                    when (it) {
+                        is WelcomeScreenEvent.SendMessage -> onInsertMessage(it.msg)
+                        WelcomeScreenEvent.StartNewTopic -> onStartNewTopic()
+                    }
                 }
             }
         }
@@ -76,7 +74,10 @@ internal class DefaultChatComponent(
     }
 
     private suspend fun onDeleteMessage(intent: Intent.DeleteMessage) {
-        messageProvider.deleteMessage(intent.messageId.toIdentifier())
+        messageProvider.deleteMessage(
+            topicId = intent.topicId.toIdentifier(),
+            messageId = intent.messageId.toIdentifier()
+        )
     }
 
     private suspend fun onLoadPreviousMessages() {
@@ -104,5 +105,9 @@ internal class DefaultChatComponent(
                 }
             }
         }
+    }
+
+    private suspend fun onStartNewTopic() {
+        messageProvider.startNewTopic()
     }
 }

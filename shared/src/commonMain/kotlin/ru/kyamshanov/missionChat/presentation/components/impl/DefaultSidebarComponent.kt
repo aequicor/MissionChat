@@ -55,24 +55,6 @@ class DefaultSidebarComponent(
         }
     }
 
-    override fun selectChat(chat: Chat?) {
-        _state.update { state ->
-            if (chat == null) {
-                state.copy(selectedChat = null, selectedTopic = null)
-            } else {
-                val chatUi = state.activeChats.find { it.id == chat.id.toUiID() }
-                    ?: state.archivedChats.find { it.id == chat.id.toUiID() }
-
-                val firstTopic = chatUi?.topics?.firstOrNull()
-                if (chatUi != null && firstTopic != null) {
-                    state.copy(selectedChat = chatUi, selectedTopic = firstTopic)
-                } else {
-                    state.copy(selectedChat = null, selectedTopic = null)
-                }
-            }
-        }
-    }
-
     override fun addTopic(topic: Pair<Chat, Topic>) {
         _state.update { value ->
             val (domainChat, domainTopic) = topic

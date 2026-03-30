@@ -228,6 +228,7 @@ fun MessagesSection(
     val state by component.store.subscribe()
     MessagesList(
         topics = state.topics,
+        selectedTopicId = state.currentTopic?.id,
         onDelete = { t, m -> component.store.intent(ChatContract.Intent.DeleteMessage(t, m)) })
     /*  is MessagesState.Loaded -> {
           MessagesList(

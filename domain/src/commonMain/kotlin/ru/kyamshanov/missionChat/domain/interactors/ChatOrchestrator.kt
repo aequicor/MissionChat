@@ -12,8 +12,6 @@ interface ChatListProvider {
 
     val activeChats: StateFlow<ChatsPaginationState>
     val archivedChats: StateFlow<ChatsPaginationState>
-    val selectedChat: StateFlow<Chat?>
-    val selectedTopic: StateFlow<Topic?>
 
     suspend fun loadNextActiveChat()
     suspend fun loadPreviousActiveChat()
@@ -21,8 +19,6 @@ interface ChatListProvider {
     suspend fun loadNextArchiveChat()
 
     suspend fun loadPreviousArchiveChat()
-
-    suspend fun select(chatId: Identifier, topicId: Identifier)
 
     suspend fun archiveChat(chatId: Identifier)
     suspend fun unarchiveChat(chatId: Identifier)
@@ -33,32 +29,19 @@ interface ChatListProvider {
 }
 
 /**
- * Интерфейс для работы с топиками чата.
- */
-interface TopicProvider {
-
-    val topics: StateFlow<TopicsPaginationState?>
-
-    suspend fun loadNext()
-    suspend fun loadPrevious()
-
-    suspend fun select(topic: Topic?)
-}
-
-/**
  * Интерфейс для управления сообщениями.
  */
 interface MessageProvider {
     val messages: StateFlow<Map<Topic, List<MessageInference>>>
 
-    val currentTopic: StateFlow<Topic?>
+    val currentTopic: StateFlow<Topic>
 
     suspend fun sendMessage(message: MessageInference.HumanMessage)
 
     suspend fun loadNextMessages()
     suspend fun loadPreviousMessages()
 
-    suspend fun deleteMessage(messageId: Identifier)
+    suspend fun deleteMessage(topicId: Identifier, messageId: Identifier)
 
     suspend fun setCurrentTopic(topic: Topic)
 
@@ -68,7 +51,4 @@ interface MessageProvider {
 /**
  * Общий оркестратор, объединяющий функциональность по SOLID (Interface Segregation).
  */
-interface ChatOrchestrator : ChatListProvider {
-
-    fun loadTopics(chat: Chat): TopicProvider
-}
+interface ChatOrchestrator : ChatListProvider

@@ -5,13 +5,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.datetime.LocalDateTime
-import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.ChatPreview
 import ru.kyamshanov.missionChat.domain.models.ChatsPaginationState
 import ru.kyamshanov.missionChat.domain.models.Identifier
 import ru.kyamshanov.missionChat.domain.models.MessageInference
 import ru.kyamshanov.missionChat.domain.models.Topic
-import ru.kyamshanov.missionChat.domain.models.TopicsPaginationState
 import ru.kyamshanov.missionChat.domain.utils.now
 
 internal class ChatOrchestratorImpl(
@@ -24,18 +22,12 @@ internal class ChatOrchestratorImpl(
     private val _archivedChats = MutableStateFlow(ChatsPaginationState())
     override val archivedChats: StateFlow<ChatsPaginationState> = _archivedChats.asStateFlow()
 
-    private val _selectedChat = MutableStateFlow<Chat?>(null)
-    override val selectedChat: StateFlow<Chat?> = _selectedChat.asStateFlow()
-
-    private val _selectedTopic = MutableStateFlow<Topic?>(null)
-    override val selectedTopic: StateFlow<Topic?> = _selectedTopic.asStateFlow()
-
     override suspend fun loadNextArchiveChat() {
-        loadChats(isArchived = true)
+        loadPreviousChats(isArchived = true)
     }
 
     override suspend fun loadNextActiveChat() {
-        loadChats(isArchived = false)
+        loadPreviousChats(isArchived = false)
     }
 
     override suspend fun loadPreviousArchiveChat() {
@@ -44,16 +36,6 @@ internal class ChatOrchestratorImpl(
 
     override suspend fun loadPreviousActiveChat() {
         // Not supported by the interactor which uses 'before' for pagination
-    }
-
-    override suspend fun select(
-        chatId: Identifier,
-        topicId: Identifier
-    ) {
-        val (chat, topics) = activeChats.value.items.first { it.chat.id == chatId }
-        val topic = topics.first { it.id == topicId }
-        _selectedChat.value = chat
-        _selectedTopic.value = topic
     }
 
     override suspend fun archiveChat(chatId: Identifier) {
@@ -84,10 +66,9 @@ internal class ChatOrchestratorImpl(
         _activeChats.update {
             it.copy(items = it.items + ChatPreview(chat, listOf(topic)))
         }
-        select(chat.id, topic.id)
     }
 
-    private suspend fun loadChats(isArchived: Boolean) {
+    private suspend fun loadPreviousChats(isArchived: Boolean) {
         val stateFlow = if (isArchived) _archivedChats else _activeChats
         val current = stateFlow.value
         if (!current.hasNext || current.isLoadingNext) return
@@ -117,92 +98,52 @@ internal class ChatOrchestratorImpl(
         }
     }
 
-    override fun loadTopics(chat: Chat): TopicProvider = TopicProviderImpl(chat)
-
     override fun getMessageProvider(
         chatId: Identifier,
         initialTopicId: Identifier
     ): MessageProvider =
-        MessageProviderImpl(chatId, initialTopicId)
-
-    private inner class TopicProviderImpl(private val chat: Chat) : TopicProvider {
-        private val _topics = MutableStateFlow<TopicsPaginationState?>(null)
-        override val topics: StateFlow<TopicsPaginationState?> = _topics.asStateFlow()
-
-        override suspend fun loadNext() {
-            val current = _topics.value ?: TopicsPaginationState()
-            if (!current.hasNext || current.isLoadingNext) return
-
-            _topics.update {
-                it?.copy(isLoadingNext = true) ?: TopicsPaginationState(isLoadingNext = true)
+        activeChats.value.items
+            .first { it.chat.id == chatId }.firstTopics
+            .first { it.id == initialTopicId }
+            .let { topic ->
+                MessageProviderImpl(topic)
             }
-
-            try {
-                val before = current.items.lastOrNull()?.createdAt ?: LocalDateTime.now()
-                val newTopics = interactor.getTopics(chat.id, limit = LIMIT, before = before)
-                _topics.update {
-                    it?.copy(
-                        items = it.items + newTopics,
-                        hasNext = newTopics.size >= LIMIT,
-                        isLoadingNext = false
-                    ) ?: TopicsPaginationState(
-                        items = newTopics,
-                        hasNext = newTopics.size >= LIMIT,
-                        isLoadingNext = false
-                    )
-                }
-            } catch (e: Exception) {
-                _topics.update { it?.copy(isLoadingNext = false) }
-            }
-        }
-
-        override suspend fun loadPrevious() {
-            // Not supported
-        }
-
-        override suspend fun select(topic: Topic?) {
-            if (topic != null) {
-                this@ChatOrchestratorImpl.select(chat.id, topic.id)
-            }
-        }
-    }
 
     private inner class MessageProviderImpl(
-        private val chatId: Identifier,
-        initialTopicId: Identifier
+        initialTopic: Topic
     ) : MessageProvider {
-        private val _messages = MutableStateFlow<Map<Topic, List<MessageInference>>>(emptyMap())
+        private val _messages =
+            MutableStateFlow<Map<Topic, List<MessageInference>>>(mapOf(initialTopic to emptyList()))
         override val messages: StateFlow<Map<Topic, List<MessageInference>>> =
             _messages.asStateFlow()
 
-        private val _currentTopic = MutableStateFlow<Topic?>(null)
-        override val currentTopic: StateFlow<Topic?> = _currentTopic.asStateFlow()
+        private val _currentTopic = MutableStateFlow(initialTopic)
+        override val currentTopic: StateFlow<Topic> = _currentTopic.asStateFlow()
 
-        private var currentTopicId: Identifier = initialTopicId
+        private val chatId: Identifier = initialTopic.chatId
+        private val currentTopicId: Identifier
+            get() = currentTopic.value.id
+
 
         override suspend fun sendMessage(message: MessageInference.HumanMessage) {
-            val currentTopic =
-                _activeChats.value.items
-                    .first { it.chat.id == chatId }.firstTopics
-                    .first { it.id == currentTopicId }
-
-            updateLocalMessages(currentTopic, message)
+            val currentTopic = _currentTopic.value
+            insertMessageLocal(currentTopic, message)
 
             val context = _messages.value[currentTopic] ?: emptyList()
 
             interactor.sendMessage(currentTopic, context, message).collect { updatedMessage ->
-                updateLocalMessages(currentTopic, updatedMessage)
+                insertMessageLocal(currentTopic, updatedMessage)
             }
         }
 
-        private fun updateLocalMessages(topic: Topic, message: MessageInference) {
+        private fun insertMessageLocal(topic: Topic, message: MessageInference) {
             _messages.update { current ->
                 val topicMessages = current[topic] ?: emptyList()
                 val index = topicMessages.indexOfFirst { it.id == message.id }
                 val newList = if (index >= 0) {
                     topicMessages.toMutableList().apply { set(index, message) }
                 } else {
-                    (topicMessages + message).sortedBy { it.createdAt }
+                    topicMessages + message
                 }
                 current + (topic to newList)
             }
@@ -213,29 +154,26 @@ internal class ChatOrchestratorImpl(
         }
 
         override suspend fun loadPreviousMessages() {
-            val currentMessagesMap = _messages.value
-            val oldestTopic = currentMessagesMap.keys.minByOrNull { it.createdAt }
-
-            val topicIdToLoad = oldestTopic?.id ?: currentTopicId
-            val before = currentMessagesMap[oldestTopic]?.firstOrNull()?.createdAt
-                ?: oldestTopic?.createdAt
-                ?: LocalDateTime.now()
+            val topicIdToLoad = currentTopicId
+            val before = LocalDateTime.now()
 
             val result = interactor.getMessages(topicIdToLoad, limit = LIMIT, before = before)
+            println(result)
             _messages.update { current ->
                 val merged = current.toMutableMap()
+                val startWith = mutableMapOf<Topic, List<MessageInference>>()
                 result.forEach { (t, msgs) ->
-                    val existing = merged[t] ?: emptyList()
-                    merged[t] = (msgs + existing).distinctBy { it.id }.sortedBy { it.createdAt }
-                    if (t.id == currentTopicId && _currentTopic.value == null) {
-                        _currentTopic.value = t
+                    merged[t]?.also { old ->
+                        merged[t] = msgs + old
+                    } ?: run {
+                        startWith[t] = msgs
                     }
                 }
-                merged
+                startWith + merged
             }
         }
 
-        override suspend fun deleteMessage(messageId: Identifier) {
+        override suspend fun deleteMessage(topicId: Identifier, messageId: Identifier) {
             interactor.deleteMessage(messageId)
             _messages.update { current ->
                 current.mapValues { (_, msgs) -> msgs.filter { it.id != messageId } }
@@ -243,17 +181,23 @@ internal class ChatOrchestratorImpl(
         }
 
         override suspend fun setCurrentTopic(topic: Topic) {
-            currentTopicId = topic.id
             _currentTopic.value = topic
-            // If we don't have messages for this topic, load them
-            if (!_messages.value.containsKey(topic)) {
-                val initialMessages = interactor.getMessages(topic.id, limit = LIMIT)
-                _messages.update { it + initialMessages }
-            }
         }
 
         override suspend fun startNewTopic() {
-            TODO()
+            val topic = interactor.createTopic(chatId, null)
+            _messages.update {
+                it.toMutableMap().apply { put(topic, emptyList()) }
+            }
+            _activeChats.update {
+                val newItems = it.items.map { preview ->
+                    if (preview.chat.id == chatId) {
+                        preview.copy(firstTopics = preview.firstTopics + topic)
+                    } else preview
+                }
+                it.copy(items = newItems)
+            }
+            _currentTopic.value = topic
         }
     }
 
