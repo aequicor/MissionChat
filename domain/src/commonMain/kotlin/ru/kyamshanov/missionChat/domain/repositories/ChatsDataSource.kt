@@ -15,35 +15,19 @@ internal interface ChatsDataSource {
      * return chats sorted by Chat#updatedAt from **oldest to newest** before $before
      * sorted(old --> new)
      */
-    suspend fun getChatsHierarchicalBefore(
-        limit: Int,
-        before: LocalDateTime,
-        isArchived: Boolean
-    ): List<Chat>
-
-    suspend fun getChatsHierarchicalAfter(
-        limit: Int,
-        after: LocalDateTime,
-        isArchived: Boolean
-    ): List<Chat>
-
-    /**
-     * return chats sorted by Chat#updatedAt from **newest to oldest** before $before
-     * sorted(new --> old)
-     */
-    suspend fun getChatsReversedBefore(
-        limit: Int,
-        before: LocalDateTime,
-        isArchived: Boolean
-    ): List<Chat>
-
-    suspend fun getChatsReversedAfter(
-        limit: Int,
-        before: LocalDateTime,
-        isArchived: Boolean
+    suspend fun getChats(
+        limit: Int = 50,
+        after: LocalDateTime? = null,
+        before: LocalDateTime? = LocalDateTime.now(),
+        isArchived: Boolean = false,
+        isHierarchical: Boolean = true,
     ): List<Chat>
 
     suspend fun saveTopic(topic: Topic)
 
     suspend fun getTopic(topicId: Identifier): Topic
+
+    suspend fun saveChat(chat: Chat)
+
+    suspend fun getChat(chatId: Identifier): Chat
 }

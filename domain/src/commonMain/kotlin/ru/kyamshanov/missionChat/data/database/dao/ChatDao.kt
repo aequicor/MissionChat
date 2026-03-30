@@ -49,5 +49,5 @@ interface ChatDao {
      * Получает чат по его идентификатору.
      */
     @Query("SELECT * FROM chats WHERE id = :chatId")
-    suspend fun getChatById(chatId: Identifier): ChatEntity?
+    suspend fun getChatById(chatId: Identifier): ChatEntity
 }

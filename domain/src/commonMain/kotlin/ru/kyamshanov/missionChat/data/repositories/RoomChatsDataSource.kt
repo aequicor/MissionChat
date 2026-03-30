@@ -27,38 +27,21 @@ internal class RoomChatsDataSource(
         }
     }
 
-    override suspend fun getChatsHierarchicalBefore(
+    override suspend fun getChats(
         limit: Int,
-        before: LocalDateTime,
-        isArchived: Boolean
+        after: LocalDateTime?,
+        before: LocalDateTime?,
+        isArchived: Boolean,
+        isHierarchical: Boolean
     ): List<Chat> =
-        chatDao.getChats(limit, before, isArchived)
-            .map { it.toDomain { id -> getTopic(id) } }
+        when {
+            after == null && before != null && isHierarchical -> {
+                chatDao.getChats(limit, before, isArchived)
+                    .map { it.toDomain { id -> getTopic(id) } }
+            }
 
-
-    override suspend fun getChatsHierarchicalAfter(
-        limit: Int,
-        after: LocalDateTime,
-        isArchived: Boolean
-    ): List<Chat> {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun getChatsReversedBefore(
-        limit: Int,
-        before: LocalDateTime,
-        isArchived: Boolean
-    ): List<Chat> {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun getChatsReversedAfter(
-        limit: Int,
-        before: LocalDateTime,
-        isArchived: Boolean
-    ): List<Chat> {
-        TODO("Not yet implemented")
-    }
+            else -> TODO()
+        }
 
     override suspend fun saveTopic(topic: Topic) {
         topicDao.insertTopic(topic.toEntity())
@@ -66,4 +49,11 @@ internal class RoomChatsDataSource(
 
     override suspend fun getTopic(topicId: Identifier): Topic =
         topicDao.getTopicById(topicId).toDomain()
+
+    override suspend fun saveChat(chat: Chat) {
+        chatDao.insertChat(chat.toEntity())
+    }
+
+    override suspend fun getChat(chatId: Identifier): Chat =
+        chatDao.getChatById(chatId).toDomain { id -> getTopic(id) }
 }

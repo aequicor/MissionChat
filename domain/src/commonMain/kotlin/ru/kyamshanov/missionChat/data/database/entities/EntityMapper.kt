@@ -10,7 +10,9 @@ inline fun ChatEntity.toDomain(headTopicSupplier: (Identifier) -> Topic): Chat =
         title = title,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        headTopic = headTopicSupplier(headTopic)
+        headTopic = headTopicSupplier(headTopic),
+        description = description,
+        isArchived = isArchived
     )
 
 fun TopicEntity.toDomain(): Topic =
@@ -23,11 +25,22 @@ fun TopicEntity.toDomain(): Topic =
     )
 
 
-fun Topic.toEntity() : TopicEntity =
+fun Topic.toEntity(): TopicEntity =
     TopicEntity(
         id = id,
         chatId = chatId,
         title = title,
         createdAt = createdAt,
         updatedAt = updatedAt
+    )
+
+fun Chat.toEntity(): ChatEntity =
+    ChatEntity(
+        id = id,
+        title = title,
+        description = description,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        headTopic = headTopic.id,
+        isArchived = isArchived,
     )

@@ -224,7 +224,9 @@ internal class RoomChatRepository(
         title = title,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        headTopic = topic.also { require(headTopic == it.id) { "" } }
+        headTopic = topic.also { require(headTopic == it.id) { "" } },
+        description = description,
+        isArchived = isArchived,
     )
 
     private fun TopicEntity.toDomain() = Topic(
