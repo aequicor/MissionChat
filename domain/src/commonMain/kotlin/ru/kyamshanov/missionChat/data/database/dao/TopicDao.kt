@@ -61,5 +61,5 @@ interface TopicDao {
      * Получает тему по её идентификатору.
      */
     @Query("SELECT * FROM topics WHERE id = :topicId")
-    suspend fun getTopicById(topicId: Identifier): TopicEntity?
+    suspend fun getTopicById(topicId: Identifier): TopicEntity
 }

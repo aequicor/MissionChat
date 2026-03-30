@@ -43,4 +43,7 @@ internal interface ChatsDataSource {
         isArchived: Boolean
     ): List<Chat>
 
+    suspend fun saveTopic(topic: Topic)
+
+    suspend fun getTopic(topicId: Identifier): Topic
 }

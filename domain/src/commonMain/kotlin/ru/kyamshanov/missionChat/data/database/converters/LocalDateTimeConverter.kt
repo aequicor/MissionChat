@@ -2,27 +2,26 @@ package ru.kyamshanov.missionChat.data.database.converters
 
 import androidx.room.TypeConverter
 import kotlinx.datetime.LocalDateTime
-import ru.kyamshanov.missionChat.domain.utils.toEpochMilliseconds
-import ru.kyamshanov.missionChat.domain.utils.toLocalDateTime
 
 /**
- * TypeConverter для преобразования [LocalDateTime] в формат Long (timestamp) для Room.
+ * TypeConverter для преобразования [LocalDateTime] в String для Room,
+ * чтобы сохранить точность до наносекунд.
  */
 object LocalDateTimeConverter {
 
     /**
-     * Преобразует Long (timestamp) в объект [LocalDateTime].
+     * Преобразует String (ISO-8601) в объект [LocalDateTime].
      */
     @TypeConverter
-    fun fromTimestamp(value: Long?): LocalDateTime? {
-        return value?.toLocalDateTime()
+    fun fromString(value: String?): LocalDateTime? {
+        return value?.let { LocalDateTime.parse(it) }
     }
 
     /**
-     * Преобразует объект [LocalDateTime] в Long (timestamp).
+     * Преобразует объект [LocalDateTime] в String (ISO-8601).
      */
     @TypeConverter
-    fun localDateTimeToTimestamp(value: LocalDateTime?): Long? {
-        return value?.toEpochMilliseconds()
+    fun localDateTimeToString(value: LocalDateTime?): String? {
+        return value?.toString()
     }
 }

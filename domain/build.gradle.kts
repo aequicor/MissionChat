@@ -72,11 +72,13 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
         }
-        androidUnitTest.dependencies {
+        androidInstrumentedTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
             // Для мокирования контекста Android
             implementation(libs.robolectric)
             implementation(libs.androidx.test.core)
             implementation(libs.androidx.test.junit)
+            implementation(libs.androidx.test.runner)
         }
     }
 }
@@ -90,6 +92,7 @@ android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures {
         buildConfig = true
