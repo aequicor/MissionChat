@@ -6,18 +6,19 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.koin.dsl.module
 import ru.kyamshanov.missionChat.data.database.AppDatabase
 import ru.kyamshanov.missionChat.data.database.createDatabase
 import ru.kyamshanov.missionChat.data.network.DeepseekApi
 import ru.kyamshanov.missionChat.data.network.DeepseekApiImpl
-import ru.kyamshanov.missionChat.data.repositories.RoomChatRepository
+import ru.kyamshanov.missionChat.data.repositories.RoomChatsDataSource
 import ru.kyamshanov.missionChat.domain.interactors.ChatOrchestrator
 import ru.kyamshanov.missionChat.domain.interactors.ChatOrchestratorImpl
 import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractor
 import ru.kyamshanov.missionChat.domain.interactors.UserChatInteractorImpl
-import ru.kyamshanov.missionChat.domain.repositories.ChatRepository
+import ru.kyamshanov.missionChat.domain.repositories.ChatsDataSource
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -51,7 +52,7 @@ val DomainDiModule = module {
     }
 
     factory<DeepseekApi> { DeepseekApiImpl(get(), get()) }
-    single<ChatRepository> { RoomChatRepository(get()) }
+    single<ChatsDataSource> { RoomChatsDataSource(get(), Dispatchers.IO) }
     single<UserChatInteractor> { UserChatInteractorImpl(get(), get()) }
     single<ChatOrchestrator> { ChatOrchestratorImpl(get()) }
 }

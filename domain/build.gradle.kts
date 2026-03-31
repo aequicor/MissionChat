@@ -68,8 +68,8 @@ kotlin {
         }
 
         commonTest.dependencies {
-            implementation(libs.koin.test)
             implementation(kotlin("test"))
+            implementation(libs.koin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
         androidInstrumentedTest.dependencies {

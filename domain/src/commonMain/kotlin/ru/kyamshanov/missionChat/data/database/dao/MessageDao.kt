@@ -8,6 +8,7 @@ import androidx.room.Update
 import ru.kyamshanov.missionChat.data.database.entities.MessageEntity
 import ru.kyamshanov.missionChat.domain.models.Identifier
 import kotlinx.datetime.LocalDateTime
+import ru.kyamshanov.missionChat.data.database.entities.ChatEntity
 
 /**
  * Data Access Object для работы с сообщениями [MessageEntity] в базе данных.
@@ -15,34 +16,33 @@ import kotlinx.datetime.LocalDateTime
 @Dao
 interface MessageDao {
 
+    @Query(
+        """
+        SELECT * FROM messages 
+        WHERE topicId = :topicId
+        AND (:before IS NULL OR createdAt < :before) 
+        AND (:after IS NULL OR createdAt > :after)
+        ORDER BY 
+        CASE WHEN :isReversed = TRUE THEN updatedAt END DESC, 
+        CASE WHEN :isReversed = FALSE THEN updatedAt END ASC 
+        LIMIT :limit
+        """
+    )
+    suspend fun getMessages(
+        topicId: Identifier,
+        limit: Int,
+        after: LocalDateTime?,
+        before: LocalDateTime?,
+        isReversed: Boolean
+    ): List<MessageEntity>
+
     /**
      * Вставляет новое сообщение. Если сообщение с таким ID уже существует, оно будет перезаписано.
      *
      * @param message Сущность сообщения для вставки.
-     * @return Row ID вставленной записи.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(message: MessageEntity): Long
-
-    /**
-     * Обновляет данные существующего сообщения.
-     *
-     * @param message Сущность сообщения с обновленными данными.
-     */
-    @Update
-    suspend fun update(message: MessageEntity)
-
-    /**
-     * Получает список сообщений для указанной темы, обновленных до указанной временной метки.
-     * Результаты отсортированы по времени последнего обновления в порядке возрастания (старые обновления в начале списка).
-     *
-     * @param topicId Идентификатор темы.
-     * @param limit Максимальное количество сообщений для получения.
-     * @param before Временная метка (updatedAt), до которой нужно искать сообщения.
-     * @return Список [MessageEntity], отсортированный по возрастанию [MessageEntity.updatedAt].
-     */
-    @Query("SELECT * FROM messages WHERE topicId = :topicId AND updatedAt < :before ORDER BY updatedAt ASC LIMIT :limit")
-    suspend fun getMessages(topicId: Identifier, limit: Int, before: LocalDateTime): List<MessageEntity>
+    suspend fun insert(message: MessageEntity)
 
     /**
      * Удаляет сообщение по его идентификатору.

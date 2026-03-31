@@ -4,44 +4,56 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDateTime
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import ru.kyamshanov.missionChat.data.database.AppDatabase
 import ru.kyamshanov.missionChat.data.database.dao.ChatDao
+import ru.kyamshanov.missionChat.data.database.dao.MessageDao
 import ru.kyamshanov.missionChat.data.database.dao.TopicDao
 import ru.kyamshanov.missionChat.data.database.entities.ChatEntity
+import ru.kyamshanov.missionChat.data.database.entities.MessageEntity
 import ru.kyamshanov.missionChat.data.database.entities.TopicEntity
-import ru.kyamshanov.missionChat.data.database.entities.toDomain
-import ru.kyamshanov.missionChat.domain.models.Chat
 import ru.kyamshanov.missionChat.domain.models.Identifier
-import ru.kyamshanov.missionChat.domain.models.Topic
 import ru.kyamshanov.missionChat.domain.repositories.ChatsDataSource
-import ru.kyamshanov.missionChat.domain.utils.now
 
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [33]) // Явно указываем SDK для корректной работы Robolectric в KMP
+@Config(sdk = [33])
 class RoomChatsDataSourceTest {
+
+    private val scheduler = TestCoroutineScheduler()
+    private val ioDispatcher = StandardTestDispatcher(scheduler)
+    private val mainDispatcher = StandardTestDispatcher(scheduler)
 
     private lateinit var database: AppDatabase
     private lateinit var chatDao: ChatDao
     private lateinit var topicDao: TopicDao
+    private lateinit var messageDao: MessageDao
     private lateinit var dataSource: ChatsDataSource
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setup() {
+        Dispatchers.setMain(mainDispatcher)
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
         chatDao = database.chatDao()
         topicDao = database.topicDao()
-        dataSource = RoomChatsDataSource(database)
+        messageDao = database.messageDao()
+        dataSource = RoomChatsDataSource(database, ioDispatcher = ioDispatcher)
     }
 
     @After
@@ -50,45 +62,111 @@ class RoomChatsDataSourceTest {
     }
 
     @Test
-    fun test_save_and_get_topic_by_id() = runTest {
-        val mockTopicId = Identifier.new()
-        val mockChatId = Identifier.new()
-        val expectedTopic = Topic(
-            id = mockTopicId,
-            chatId = mockChatId,
-            title = "Test Topic",
-            createdAt = LocalDateTime.now(),
-            updatedAt = LocalDateTime.now(),
+    fun test_getChats_variations() = runTest(scheduler) {
+        insertTestData()
+
+        // 1. Limit
+        val limit1 = dataSource.getChats(limit = 1, isArchived = false, isReversed = false)
+        assertEquals("Should return only 1 chat", 1, limit1.size)
+        assertEquals("Общий чат", limit1[0].title)
+
+        // 2. isArchived = true
+        val archived = dataSource.getChats(limit = 10, isArchived = true, isReversed = false)
+        assertEquals("Should return 1 archived chat", 1, archived.size)
+        assertEquals("Архив проекта", archived[0].title)
+        // 3. isArchived = false
+        val active = dataSource.getChats(limit = 10, isArchived = false, isReversed = false)
+        assertEquals("Should return 3 active chats", 3, active.size)
+
+        // 4. isReversed = true (Descending by createdAt)
+        val reversed = dataSource.getChats(limit = 10, isArchived = false, isReversed = true)
+        assertEquals("3-й проект", reversed[0].title)
+        assertEquals("Разработка", reversed[1].title)
+        assertEquals("Общий чат", reversed[2].title)
+
+        // 5. before filter
+        val before = dataSource.getChats(
+            limit = 10,
+            before = LocalDateTime(2023, 10, 15, 0, 0),
+            isArchived = false,
+            isReversed = false
         )
+        assertEquals(1, before.size)
+        assertEquals("Общий чат", before[0].title)
 
-        dataSource.saveTopic(expectedTopic)
-        val actualTopic = dataSource.getTopic(mockTopicId)
-
-        assertEquals(expectedTopic, actualTopic)
+        // 6. after filter
+        val after = dataSource.getChats(
+            limit = 10,
+            after = LocalDateTime(2023, 10, 15, 0, 0),
+            isArchived = false,
+            isReversed = false
+        )
+        assertEquals(2, after.size)
+        assertEquals("Разработка", after[0].title)
     }
 
     @Test
-    fun test_get_before_chats() = runTest {
-        val (chats, _) = insertTestData()
+    fun test_getTopics_variations() = runTest(scheduler) {
+        val (chats, _, _) = insertTestData()
+        val chat = dataSource.getChat(chats[0].id)
 
-        val expected = chats.map {
-            it.toDomain { id -> dataSource.getTopic(id) }
-        }.sortedBy { it.createdAt }
-        val actual = dataSource.getChats()
+        // 1. Limit
+        val limit2 = dataSource.getTopics(chat.id, limit = 2, isReversed = false)
+        assertEquals(2, limit2.size)
 
-        assertEquals(expected, actual)
+        // 2. isReversed = true (Descending by updatedAt)
+        val reversed = dataSource.getTopics(chat.id, limit = 10, isReversed = true)
+        assertEquals("Предложения", reversed[0].title)
+        assertEquals("Правила сообщества", reversed.last().title)
+
+        // 3. after filter
+        val after = dataSource.getTopics(
+            chatId = chat.id,
+            limit = 10,
+            after = LocalDateTime(2023, 10, 2, 0, 0),
+            isReversed = false
+        )
+        assertTrue(after.all { it.createdAt > LocalDateTime(2023, 10, 2, 0, 0) })
+        assertEquals(3, after.size)
     }
 
-    private suspend fun insertTestData(): Pair<List<ChatEntity>, List<TopicEntity>> {
-        val (chats, topics) = testData
+    @Test
+    fun test_getMessages_variations() = runTest(scheduler) {
+        val (_, topics, _) = insertTestData()
+        val topic = dataSource.getTopic(topics[0].id)
+
+        // 1. Limit
+        val limit1 = dataSource.getMessages(topic.id, limit = 1, isReversed = false)
+        assertEquals(1, limit1.size)
+        assertEquals("Hello", limit1[0].text)
+
+        // 2. isReversed = true
+        val reversed = dataSource.getMessages(topic.id, limit = 10, isReversed = true)
+        assertEquals("How are you?", reversed[0].text)
+        assertEquals("Hello", reversed[1].text)
+
+        // 3. before filter
+        val before = dataSource.getMessages(
+            topic.id,
+            limit = 10,
+            before = LocalDateTime(2023, 10, 1, 10, 10),
+            isReversed = false
+        )
+        assertEquals(1, before.size)
+        assertEquals("Hello", before[0].text)
+    }
+
+    private suspend fun insertTestData(): Triple<List<ChatEntity>, List<TopicEntity>, List<MessageEntity>> {
+        val (chats, topics, messages) = testData
         chats.forEach { chatDao.insertChat(it) }
         topics.forEach { topicDao.insertTopic(it) }
-        return chats to topics
+        messages.forEach { messageDao.insert(it) }
+        return Triple(chats, topics, messages)
     }
 
     companion object {
 
-        private val testData: Pair<List<ChatEntity>, List<TopicEntity>>
+        private val testData: Triple<List<ChatEntity>, List<TopicEntity>, List<MessageEntity>>
             get() {
                 val firstChatId = Identifier.new()
                 val firstHeadTopicId = Identifier.new()
@@ -96,6 +174,9 @@ class RoomChatsDataSourceTest {
                 val secondHeadTopicId = Identifier.new()
                 val thirdChatId = Identifier.new()
                 val thirdHeadTopicId = Identifier.new()
+                val fourthChatId = Identifier.new()
+                val fourthHeadTopicId = Identifier.new()
+
                 val chats = listOf(
                     ChatEntity(
                         id = firstChatId,
@@ -117,91 +198,103 @@ class RoomChatsDataSourceTest {
                     ),
                     ChatEntity(
                         id = thirdChatId,
-                        title = "Архив проекта",
+                        title = "3-й проект",
                         description = "Завершенные обсуждения",
                         createdAt = LocalDateTime(2023, 11, 15, 10, 0),
                         updatedAt = LocalDateTime(2023, 11, 15, 10, 0),
                         headTopic = thirdHeadTopicId,
                         isArchived = false
+                    ),
+                    ChatEntity(
+                        id = fourthChatId,
+                        title = "Архив проекта",
+                        description = "Завершенные обсуждения",
+                        createdAt = LocalDateTime(2023, 10, 15, 10, 0),
+                        updatedAt = LocalDateTime(2023, 10, 15, 10, 0),
+                        headTopic = fourthHeadTopicId,
+                        isArchived = true
                     )
                 )
 
                 val topics = listOf(
-                    // Чат 0: 5 топиков
                     TopicEntity(
                         id = firstHeadTopicId,
-                        chatId = chats[0].id,
+                        chatId = firstChatId,
                         title = "Правила сообщества",
                         createdAt = LocalDateTime(2023, 10, 1, 10, 5),
                         updatedAt = LocalDateTime(2023, 10, 1, 10, 5)
                     ),
                     TopicEntity(
                         id = Identifier.new(),
-                        chatId = chats[0].id,
+                        chatId = firstChatId,
                         title = "Знакомство",
                         createdAt = LocalDateTime(2023, 10, 1, 11, 0),
                         updatedAt = LocalDateTime(2023, 10, 1, 11, 0)
                     ),
                     TopicEntity(
                         id = Identifier.new(),
-                        chatId = chats[0].id,
+                        chatId = firstChatId,
                         title = "Частые вопросы",
                         createdAt = LocalDateTime(2023, 10, 2, 9, 0),
                         updatedAt = LocalDateTime(2023, 10, 2, 9, 0)
                     ),
                     TopicEntity(
                         id = Identifier.new(),
-                        chatId = chats[0].id,
+                        chatId = firstChatId,
                         title = "Полезные ссылки",
                         createdAt = LocalDateTime(2023, 10, 3, 15, 0),
                         updatedAt = LocalDateTime(2023, 10, 3, 15, 0)
                     ),
                     TopicEntity(
                         id = Identifier.new(),
-                        chatId = chats[0].id,
+                        chatId = firstChatId,
                         title = "Предложения",
                         createdAt = LocalDateTime(2023, 10, 4, 10, 0),
                         updatedAt = LocalDateTime(2023, 10, 4, 10, 0)
                     ),
-
-                    // Чат 1: 4 топика
                     TopicEntity(
                         id = secondHeadTopicId,
-                        chatId = chats[1].id,
+                        chatId = secondChatId,
                         title = "Обсуждение архитектуры",
                         createdAt = LocalDateTime(2023, 11, 2, 12, 0),
                         updatedAt = LocalDateTime(2023, 11, 3, 15, 30)
                     ),
                     TopicEntity(
-                        id = Identifier.new(),
-                        chatId = chats[1].id,
-                        title = "План на спринт",
-                        createdAt = LocalDateTime(2023, 11, 5, 9, 0),
-                        updatedAt = LocalDateTime(2023, 11, 5, 9, 0)
-                    ),
-                    TopicEntity(
-                        id = Identifier.new(),
-                        chatId = chats[1].id,
-                        title = "Баги",
-                        createdAt = LocalDateTime(2023, 11, 6, 14, 0),
-                        updatedAt = LocalDateTime(2023, 11, 6, 14, 0)
-                    ),
-                    TopicEntity(
-                        id = Identifier.new(),
-                        chatId = chats[1].id,
-                        title = "Релиз 1.0",
-                        createdAt = LocalDateTime(2023, 11, 10, 11, 0),
-                        updatedAt = LocalDateTime(2023, 11, 10, 11, 0)
-                    ),
-                    TopicEntity(
                         id = thirdHeadTopicId,
-                        chatId = chats[2].id,
-                        title = "План на спринт",
-                        createdAt = LocalDateTime(2023, 11, 16, 9, 0),
-                        updatedAt = LocalDateTime(2023, 11, 16, 9, 0)
+                        chatId = thirdChatId,
+                        title = "Обсуждение",
+                        createdAt = LocalDateTime(2023, 11, 2, 12, 0),
+                        updatedAt = LocalDateTime(2023, 11, 3, 15, 30)
+                    ),
+                    TopicEntity(
+                        id = fourthHeadTopicId,
+                        chatId = secondChatId,
+                        title = "Обсуждение архитектуры",
+                        createdAt = LocalDateTime(2023, 10, 2, 12, 0),
+                        updatedAt = LocalDateTime(2023, 10, 3, 15, 30)
                     )
                 )
-                return chats to topics
+
+                val messages = listOf(
+                    MessageEntity(
+                        id = Identifier.new(),
+                        topicId = firstHeadTopicId,
+                        type = "HUMAN",
+                        content = "Hello",
+                        createdAt = LocalDateTime(2023, 10, 1, 10, 6),
+                        updatedAt = LocalDateTime(2023, 10, 1, 10, 6)
+                    ),
+                    MessageEntity(
+                        id = Identifier.new(),
+                        topicId = firstHeadTopicId,
+                        type = "ASSISTANT",
+                        content = "How are you?",
+                        createdAt = LocalDateTime(2023, 10, 1, 10, 15),
+                        updatedAt = LocalDateTime(2023, 10, 1, 10, 15)
+                    )
+                )
+
+                return Triple(chats, topics, messages)
             }
     }
 }

@@ -142,16 +142,14 @@ private fun MessagesListContent(
 }
 
 @Composable
-private fun TopicHeader(title: String?) {
-    if (title.isNullOrBlank()) return
+private fun TopicHeader(title: String) {
     Box(modifier = Modifier.fillMaxWidth()) {
         FloatingHeader(title, Modifier.align(Alignment.Center))
     }
 }
 
 @Composable
-private fun SelectedTopicHeader(title: String?) {
-    if (title.isNullOrBlank()) return
+private fun SelectedTopicHeader(title: String) {
     Box(modifier = Modifier.fillMaxWidth()) {
         FloatingHeader(
             title = title,

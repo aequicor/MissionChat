@@ -22,11 +22,13 @@ interface UserChatInteractor {
     suspend fun getActiveChats(
         limit: Int = 50,
         before: LocalDateTime = LocalDateTime.now(),
+        isReversed: Boolean = false,
     ): List<Chat>
 
     suspend fun getArchivedChats(
         limit: Int = 50,
-        before: LocalDateTime = LocalDateTime.now()
+        before: LocalDateTime = LocalDateTime.now(),
+        isReversed: Boolean = false,
     ): List<Chat>
 
     /**
@@ -40,6 +42,7 @@ interface UserChatInteractor {
         chatId: Identifier,
         limit: Int = 50,
         before: LocalDateTime = LocalDateTime.now(),
+        isReversed: Boolean = false,
     ): List<Topic>
 
 

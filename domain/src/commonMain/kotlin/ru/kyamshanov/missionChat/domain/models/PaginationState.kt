@@ -4,12 +4,12 @@ typealias ChatsPaginationState = PaginationState<ChatPreview>
 
 typealias TopicsPaginationState = PaginationState<Topic>
 
+typealias MessagesPaginationState = PaginationState<TopicMessages>
+
 data class PaginationState<T>(
     val items: List<T> = emptyList(),
-    val topCursor: String? = null,
-    val bottomCursor: String? = null,
     val hasNext: Boolean = true,
-    val hasPrev: Boolean = false,
+    val hasPrev: Boolean = true,
     val isLoadingNext: Boolean = false,
     val isLoadingPrev: Boolean = false
 )

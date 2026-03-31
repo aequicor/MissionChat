@@ -43,12 +43,6 @@ interface ChatDao {
     suspend fun insertChat(chat: ChatEntity)
 
     /**
-     * Обновляет данные существующего чата.
-     */
-    @Update
-    suspend fun updateChat(chat: ChatEntity)
-
-    /**
      * Удаляет чат по его идентификатору.
      */
     @Query("DELETE FROM chats WHERE id = :chatId")

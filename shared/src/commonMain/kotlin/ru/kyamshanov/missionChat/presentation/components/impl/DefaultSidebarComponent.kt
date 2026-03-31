@@ -31,7 +31,7 @@ class DefaultSidebarComponent(
         topic: TopicUiModel
     ) {
         onSelectedCallback(chat.id.toIdentifier(), topic.id.toIdentifier())
-        _state.update { it.copy(selectedChat = chat, selectedTopic = topic) }
+        _state.update { it.copy(selectedChat = chat) }
     }
 
 
@@ -81,22 +81,16 @@ class DefaultSidebarComponent(
         }
     }
 
-    override fun selectTopic(topic: Pair<Chat, Topic>?) {
+    override fun selectTopic(topic: Pair<Identifier, Identifier>?) {
         _state.update { value ->
             if (topic == null) {
                 value.copy(selectedChat = null, selectedTopic = null)
             } else {
-                val (domainChat, domainTopic) = topic
-                val chatUi = value.activeChats.find { it.id == domainChat.id.toUiID() }
-                    ?: value.archivedChats.find { it.id == domainChat.id.toUiID() }
+                val (chatId, topicId) = topic
 
-                val topicUi = chatUi?.topics?.find { it.id == domainTopic.id.toUiID() }
-
-                if (chatUi != null && topicUi != null) {
-                    value.copy(selectedChat = chatUi, selectedTopic = topicUi)
-                } else {
-                    value.copy(selectedChat = null, selectedTopic = null)
-                }
+                val chat = value.activeChats.first { it.id == chatId.toUiID() }
+                val topic = chat.topics.first { it.id == topicId.toUiID() }
+                value.copy(selectedChat = chat, selectedTopic = topic)
             }
         }
     }

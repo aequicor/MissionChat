@@ -15,7 +15,7 @@ import kotlinx.datetime.LocalDateTime
 data class Topic(
     val id: Identifier,
     val chatId: Identifier,
-    val title: String?,
+    val title: String,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime
 )

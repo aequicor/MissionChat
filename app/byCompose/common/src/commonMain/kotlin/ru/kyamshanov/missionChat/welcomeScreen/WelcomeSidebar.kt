@@ -308,7 +308,7 @@ private fun SidebarItem(
                         .padding(start = 24.dp, top = 4.dp) // Indent topics
                 ) {
                     // Show last 3 topics
-                    chat.topics.reversed().take(3).forEach { topic ->
+                    chat.topics.take(3).forEach { topic ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

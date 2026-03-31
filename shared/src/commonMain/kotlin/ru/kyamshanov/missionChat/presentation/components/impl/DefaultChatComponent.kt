@@ -3,7 +3,10 @@ package ru.kyamshanov.missionChat.presentation.components.impl
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.essenty.lifecycle.coroutines.coroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import pro.respawn.flowmvi.api.Store
@@ -28,7 +31,7 @@ import ru.kyamshanov.missionChat.utils.toUI
 internal class DefaultChatComponent(
     componentContext: ComponentContext,
     private val messageProvider: MessageProvider,
-    private val eventBus: SharedFlow<WelcomeScreenEvent>,
+    private val eventBus: Flow<WelcomeScreenEvent>,
     private val onMessageSent: (Result<Unit>) -> Unit,
 ) : ChatComponent, ComponentContext by componentContext {
 
@@ -42,23 +45,29 @@ internal class DefaultChatComponent(
         }
 
         init {
-            launch { messageProvider.loadPreviousMessages() }
             launch {
-                messageProvider.messages.collect {
-                    updateState { copy(topics = it.toTopics()) }
-                }
-            }
-            launch {
-                messageProvider.currentTopic.collect {
-                    updateState { copy(currentTopic = it.toUI()) }
-                }
-            }
-            launch {
+                messageProvider.initMessages()
                 eventBus.collect {
                     when (it) {
                         is WelcomeScreenEvent.SendMessage -> onInsertMessage(it.msg)
                         WelcomeScreenEvent.StartNewTopic -> onStartNewTopic()
                     }
+                }
+            }
+            launch {
+                messageProvider.messages.collect { paginationState ->
+                    updateState {
+                        copy(
+                            topics = paginationState.items
+                                .associate { it.topic to it.messages }
+                                .toTopics()
+                        )
+                    }
+                }
+            }
+            launch {
+                messageProvider.currentTopic.collect {
+                    updateState { copy(currentTopic = it.toUI()) }
                 }
             }
         }

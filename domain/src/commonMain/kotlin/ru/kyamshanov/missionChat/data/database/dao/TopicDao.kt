@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.datetime.LocalDateTime
+import ru.kyamshanov.missionChat.data.database.entities.MessageEntity
 import ru.kyamshanov.missionChat.data.database.entities.TopicEntity
 import ru.kyamshanov.missionChat.domain.models.Identifier
 
@@ -15,41 +16,31 @@ import ru.kyamshanov.missionChat.domain.models.Identifier
 @Dao
 interface TopicDao {
 
-    /**
-     * Получает список тем для конкретного чата.
-     * Результаты отсортированы по возрастанию даты создания (новые элементы в конце списка).
-     *
-     * @param chatId Идентификатор чата, к которому относятся темы.
-     * @param limit Максимальное количество возвращаемых тем.
-     * @param before Временная метка, до которой должны быть созданы темы.
-     * @return Список [TopicEntity].
-     */
-    @Query("SELECT * FROM topics WHERE chatId = :chatId AND createdAt < :before ORDER BY createdAt LIMIT :limit")
-    suspend fun getTopics(chatId: Identifier, limit: Int, before: LocalDateTime): List<TopicEntity>
-
-    /**
-     * Получает список тем для конкретного чата.
-     * Результаты отсортированы по убыванию даты создания (новые элементы в начале списка).
-     *
-     * @param chatId Идентификатор чата, к которому относятся темы.
-     * @param limit Максимальное количество возвращаемых тем.
-     * @param before Временная метка, до которой должны быть созданы темы.
-     * @return Список [TopicEntity].
-     */
-    @Query("SELECT * FROM topics WHERE chatId = :chatId AND createdAt < :before ORDER BY createdAt DESC LIMIT :limit")
-    suspend fun getTopicsReversed(chatId: Identifier, limit: Int, before: LocalDateTime): List<TopicEntity>
+    @Query(
+        """
+        SELECT * FROM topics 
+        WHERE chatId = :chatId
+        AND (:before IS NULL OR createdAt < :before) 
+        AND (:after IS NULL OR createdAt > :after)
+        ORDER BY 
+        CASE WHEN :isReversed = TRUE THEN updatedAt END DESC, 
+        CASE WHEN :isReversed = FALSE THEN updatedAt END ASC 
+        LIMIT :limit
+        """
+    )
+    suspend fun getTopics(
+        chatId: Identifier,
+        limit: Int,
+        after: LocalDateTime?,
+        before: LocalDateTime?,
+        isReversed: Boolean
+    ): List<TopicEntity>
 
     /**
      * Сохраняет новую тему или перезаписывает существующую при совпадении ID.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTopic(topic: TopicEntity)
-
-    /**
-     * Обновляет данные существующей темы.
-     */
-    @Update
-    suspend fun updateTopic(topic: TopicEntity)
 
     /**
      * Удаляет тему по её идентификатору.
