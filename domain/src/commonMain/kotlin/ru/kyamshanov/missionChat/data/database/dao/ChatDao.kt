@@ -15,17 +15,26 @@ import ru.kyamshanov.missionChat.domain.models.Identifier
 @Dao
 interface ChatDao {
 
-    /**
-     * Получает список чатов с фильтрацией по статусу архивации и дате создания.
-     * Результаты отсортированы по возрастанию даты создания (новые элементы в конце списка).
-     *
-     * @param limit Максимальное количество возвращаемых чатов.
-     * @param before Временная метка, до которой (не включая) должны быть созданы чаты.
-     * @param isArchived Флаг поиска в архивированных или активных чатах.
-     * @return Список чатов [ChatEntity].
-     */
-    @Query("SELECT * FROM chats WHERE createdAt < :before AND isArchived = :isArchived ORDER BY createdAt ASC LIMIT :limit")
-    suspend fun getChats(limit: Int, before: LocalDateTime, isArchived : Boolean): List<ChatEntity>
+
+    @Query(
+        """
+        SELECT * FROM chats 
+        WHERE (:before IS NULL OR createdAt < :before) 
+        AND (:after IS NULL OR createdAt > :after)
+        AND isArchived = :isArchived 
+        ORDER BY 
+        CASE WHEN :isReversed = TRUE THEN createdAt END DESC, 
+        CASE WHEN :isReversed = FALSE THEN createdAt END ASC 
+        LIMIT :limit
+        """
+    )
+    suspend fun getChats(
+        limit: Int,
+        after: LocalDateTime?,
+        before: LocalDateTime?,
+        isArchived: Boolean,
+        isReversed: Boolean
+    ): List<ChatEntity>
 
     /**
      * Сохраняет новый чат или обновляет существующий при совпадении ID.

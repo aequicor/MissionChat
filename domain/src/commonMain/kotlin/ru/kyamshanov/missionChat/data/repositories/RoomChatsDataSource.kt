@@ -32,10 +32,10 @@ internal class RoomChatsDataSource(
         after: LocalDateTime?,
         before: LocalDateTime?,
         isArchived: Boolean,
-        isHierarchical: Boolean
+        isReversed: Boolean
     ): List<Chat> =
         when {
-            after == null && before != null && isHierarchical -> {
+            after == null && before != null && isReversed -> {
                 chatDao.getChats(limit, before, isArchived)
                     .map { it.toDomain { id -> getTopic(id) } }
             }

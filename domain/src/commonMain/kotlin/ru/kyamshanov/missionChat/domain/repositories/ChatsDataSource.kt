@@ -20,7 +20,7 @@ internal interface ChatsDataSource {
         after: LocalDateTime? = null,
         before: LocalDateTime? = LocalDateTime.now(),
         isArchived: Boolean = false,
-        isHierarchical: Boolean = true,
+        isReversed: Boolean = false,
     ): List<Chat>
 
     suspend fun saveTopic(topic: Topic)
